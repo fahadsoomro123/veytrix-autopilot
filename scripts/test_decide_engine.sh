@@ -18,6 +18,7 @@ assert_decision github-free deterministic-capability-sufficient auto success "ve
 assert_decision ai deterministic-verification-passed-but-mission-requires-reasoning auto success "implement the requested feature" true
 assert_decision ai deterministic-verification-insufficient auto failure "implement the requested feature" true
 assert_decision github-free ai-unavailable-deterministic-only auto failure "implement the requested feature" false
+assert_decision github-free deterministic-capability-sufficient-explicit github-free success "verify repository" true
 assert_decision github-free explicit-github-free github-free failure "anything" true
 assert_decision ai explicit-ai ai success "anything" true
 
