@@ -9,10 +9,19 @@ ai_available="${4:-false}"
 selected=""
 reason=""
 
+is_verification_only_mission() {
+  printf '%s\n' "$mission" | grep -Eqi '^[[:space:]]*(verify|verification|run[[:space:]]+tests?|test|check[[:space:]]+tests?|validate)[[:space:]]*(the[[:space:]]+)?(repository|repo|project|build|tests?)?[[:space:]]*$'
+}
+
 case "$requested" in
   github-free)
-    selected="github-free"
-    reason="explicit-github-free"
+    if [[ "$deterministic_outcome" == "success" ]] && is_verification_only_mission; then
+      selected="github-free"
+      reason="deterministic-capability-sufficient-explicit"
+    else
+      selected="github-free"
+      reason="explicit-github-free"
+    fi
     ;;
   ai)
     if [[ "$ai_available" != "true" ]]; then
@@ -26,7 +35,7 @@ case "$requested" in
     # A passing deterministic verification is only sufficient when the mission
     # itself is a verification-only mission. Passing tests cannot prove that an
     # arbitrary implementation request was completed.
-    if [[ "$deterministic_outcome" == "success" ]] && printf '%s\n' "$mission" | grep -Eqi '^[[:space:]]*(verify|verification|run[[:space:]]+tests?|test|check[[:space:]]+tests?|validate)[[:space:]]*(the[[:space:]]+)?(repository|repo|project|build|tests?)?[[:space:]]*$'; then
+    if [[ "$deterministic_outcome" == "success" ]] && is_verification_only_mission; then
       selected="github-free"
       reason="deterministic-capability-sufficient"
     elif [[ "$ai_available" == "true" ]]; then
