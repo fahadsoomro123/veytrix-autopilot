@@ -1,0 +1,3 @@
+Veytrix Smart Autopilot end-to-end self-healing probe trigger.
+retrigger=deterministic-transient-recovery
+proof_run=2026-09-16T18:55Z

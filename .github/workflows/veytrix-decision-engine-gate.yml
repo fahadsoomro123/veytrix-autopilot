@@ -1,0 +1,63 @@
+name: Veytrix Decision Engine Gate
+
+on:
+  push:
+    branches:
+      - migration/forensic-smart-autopilot
+    paths:
+      - 'scripts/decide_engine.sh'
+      - 'scripts/test_decide_engine.sh'
+      - '.github/workflows/veytrix-autopilot.yml'
+      - '.github/workflows/veytrix-decision-engine-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  decision-engine-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 1
+
+      - name: Run deterministic-first decision tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/test_decide_engine.sh
+
+      - name: Validate YAML structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -ryaml -e '
+            ARGV.each do |name|
+              data = YAML.safe_load(File.read(name), aliases: true)
+              abort("#{name}: workflow root is not a mapping") unless data.is_a?(Hash)
+              abort("#{name}: missing jobs mapping") unless data["jobs"].is_a?(Hash)
+              puts "validated=#{name}"
+            end
+          ' .github/workflows/veytrix-autopilot.yml .github/workflows/veytrix-decision-engine-gate.yml
+
+      - name: Record gate evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Veytrix Smart Autopilot — Decision Gate'
+            echo ''
+            echo '| Case | Expected |'
+            echo '|---|---|'
+            echo '| deterministic verification sufficient | github-free; AI not selected |'
+            echo '| deterministic verification passes but mission requires reasoning | ai |'
+            echo '| deterministic verification insufficient | ai |'
+            echo '| AI unavailable | deterministic-only fallback |'
+            echo '| explicit AI without key | hard failure |'
+            echo ''
+            echo 'Decision self-test and YAML structure validation passed without invoking OpenAI.'
+            echo 'API-key presence alone is not the engine-selection criterion.'
+          } >> "$GITHUB_STEP_SUMMARY"
