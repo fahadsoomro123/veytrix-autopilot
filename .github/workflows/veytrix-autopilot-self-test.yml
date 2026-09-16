@@ -1,0 +1,37 @@
+name: Veytrix Smart Autopilot Self-Test
+
+on:
+  push:
+    paths:
+      - 'autopilot-e2e-test/**'
+      - '.github/workflows/veytrix-autopilot-self-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-healing-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deterministic transient-failure probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "VEYTRIX_AUTOPILOT_E2E attempt=${GITHUB_RUN_ATTEMPT}"
+          if [ "${GITHUB_RUN_ATTEMPT}" -eq 1 ]; then
+            echo "temporary failure: deterministic Veytrix Autopilot self-healing probe" >&2
+            exit 1
+          fi
+          test -s autopilot-e2e-test/trigger.txt
+          echo "Veytrix Autopilot self-healing probe recovered successfully on rerun."
+
+      - name: Write verification marker
+        if: success()
+        shell: bash
+        run: |
+          printf 'Veytrix Autopilot E2E recovery verified on run %s, attempt %s.\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > VEYTRIX_AUTOPILOT_E2E_VERIFIED.md
