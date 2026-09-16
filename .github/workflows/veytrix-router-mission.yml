@@ -97,8 +97,16 @@ jobs:
 
       - name: Deterministic-only completion
         if: steps.decision.outputs.selected == 'github-free'
+        shell: bash
         run: |
-          echo 'Deterministic verification is sufficient; no AI provider was invoked.'
+          set -euo pipefail
+          reason='${{ steps.decision.outputs.reason }}'
+          if [[ "$reason" == deterministic-capability-sufficient* ]] && [[ '${{ steps.deterministic.outcome }}' == 'success' ]]; then
+            echo 'Deterministic verification is sufficient; no AI provider was invoked.'
+          else
+            echo 'No AI provider is available and deterministic capability is insufficient for this mission.'
+            exit 20
+          fi
 
       - name: Write bounded AI mission prompt
         if: steps.decision.outputs.selected == 'ai'
