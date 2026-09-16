@@ -11,19 +11,27 @@ permissions:
 jobs:
   router-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      VEYTRIX_AI_PROVIDER_ATTEMPTS: '2'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Prove deterministic boundary
+      - name: Validate router shell and fallback contract
         shell: bash
         run: |
           set -euo pipefail
+          bash scripts/test_ai_router.sh
+
+      - name: Prove deterministic boundary
+        shell: bash
+        run: |
           set +e
           AUTOPILOT_VERIFY_COMMAND='python -c "raise SystemExit(1)"' bash scripts/deterministic_verify.sh . >/tmp/deterministic.log 2>&1
           status=$?
@@ -35,14 +43,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "${GEMINI_API_KEY:-}${GROQ_API_KEY:-}${OPENROUTER_API_KEY:-}"
-          if [[ -n "${GEMINI_API_KEY:-}" ]]; then
-            echo 'Expected provider: Gemini free tier'
-          elif [[ -n "${GROQ_API_KEY:-}" ]]; then
-            echo 'Expected provider: Groq free tier'
-          else
-            echo 'Expected provider: OpenRouter free tier'
-          fi
+          test -n "${GEMINI_API_KEY:-}${GROQ_API_KEY:-}${CEREBRAS_API_KEY:-}${MISTRAL_API_KEY:-}${OPENROUTER_API_KEY:-}"
+          echo 'At least one free-first provider is configured.'
 
       - name: Create controlled repair fixture
         shell: bash
@@ -65,7 +67,7 @@ jobs:
           Run the test before finishing and leave the repaired source in the working directory.
           MD
 
-      - name: Run routed free AI repair
+      - name: Run routed free AI repair with fallback
         shell: bash
         run: |
           set -euo pipefail
