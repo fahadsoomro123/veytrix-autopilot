@@ -189,14 +189,7 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "veytrix: repair failed workflow ${RUN_ID}"
           git push origin "HEAD:${HEAD_BRANCH}"
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/veytrix-autopilot.yml/dispatches" \
-            -f ref="main" \
-            -f 'inputs[mission]=Verify the latest Veytrix repair. Run relevant tests/build, inspect artifacts when applicable, and make no feature changes unless verification proves the repair is incomplete.' \
-            -f "inputs[target_repository]=${GITHUB_REPOSITORY}" \
-            -f "inputs[branch]=${HEAD_BRANCH}" \
-            -f 'inputs[engine]=github-free' \
-            -f 'inputs[verification_depth]=1'
-          echo 'AI repair pushed and bounded verification dispatched.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'AI repair pushed; the next target workflow completion will be observed by the recovery layer.' >> "$GITHUB_STEP_SUMMARY"
 
   manual-mission:
     if: github.event_name == 'workflow_dispatch'
@@ -205,6 +198,10 @@ jobs:
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
+      - name: Capture mission start boundary
+        shell: bash
+        run: echo "MISSION_STARTED_EPOCH=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Checkout Veytrix core
         uses: actions/checkout@v4
         with:
@@ -318,8 +315,9 @@ jobs:
           set -euo pipefail
           bash ../.veytrix-core/scripts/deterministic_verify.sh .
 
-      - name: Push AI mission result and bounded verification
+      - name: Push AI mission result
         if: steps.engine.outputs.selected == 'ai'
+        id: push
         env:
           GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
         working-directory: target
@@ -336,14 +334,70 @@ jobs:
           git add -A
           git diff --cached --quiet || git commit -m 'veytrix: complete requested mission'
           git push origin "HEAD:${{ inputs.branch }}"
-          depth='${{ inputs.verification_depth }}'
-          if [ "$depth" -lt "$MAX_VERIFICATION_HANDOFFS" ]; then
-            next_depth=$((depth + 1))
-            gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/veytrix-autopilot.yml/dispatches" \
-              -f ref='main' \
-              -f 'inputs[mission]=Final verification of the latest Veytrix mission changes. Do not add features; verify tests/build/artifacts and report only verified success or a concrete blocker.' \
-              -f "inputs[target_repository]=${{ inputs.target_repository }}" \
-              -f "inputs[branch]=${{ inputs.branch }}" \
-              -f 'inputs[engine]=github-free' \
-              -f "inputs[verification_depth]=${next_depth}"
+
+      - name: Observe target CI and perform deterministic recovery
+        if: steps.engine.outputs.selected == 'ai' && steps.push.outcome == 'success'
+        id: target_recovery
+        env:
+          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+          TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          TARGET_BRANCH: ${{ inputs.branch }}
+          STARTED_EPOCH: ${{ env.MISSION_STARTED_EPOCH }}
+          MAX_FREE_RERUNS: ${{ env.MAX_FREE_RERUNS }}
+          AUTOPILOT_TARGET_TIMEOUT_MINUTES: "20"
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          bash .veytrix-core/scripts/target_ci_recovery.sh
+
+      - name: AI target-CI repair escalation
+        if: steps.engine.outputs.selected == 'ai' && steps.push.outcome == 'success' && steps.target_recovery.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          working-directory: target
+          output-file: /tmp/veytrix-target-repair.txt
+          prompt: |
+            The target repository CI did not pass after the first mission repair and deterministic recovery was insufficient.
+
+            Review:
+            - /tmp/veytrix-target-run.json
+            - /tmp/veytrix-target-failure.log
+            - /tmp/veytrix-target-classification.txt
+
+            Diagnose the actual source/build/test issue and make the smallest correct repair.
+            Never expose secrets, signing keys, credentials or tokens. Never disable tests or verification. Do not commit or push; the outer workflow will do that. Verify the repair before stopping.
+
+      - name: Push bounded target-CI repair
+        if: steps.engine.outputs.selected == 'ai' && steps.push.outcome == 'success' && steps.target_recovery.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        env:
+          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+        working-directory: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo 'No second-round target repair produced; concrete blocker remains.'
+            exit 0
           fi
+          git config user.name 'Veytrix Smart Autopilot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target_repository }}.git"
+          git add -A
+          git diff --cached --quiet || git commit -m 'veytrix: repair target CI failure'
+          git push origin "HEAD:${{ inputs.branch }}"
+
+      - name: Final target verification
+        if: steps.engine.outputs.selected == 'ai'
+        env:
+          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+          TARGET_REPOSITORY: ${{ inputs.target_repository }}
+          TARGET_BRANCH: ${{ inputs.branch }}
+          STARTED_EPOCH: ${{ env.MISSION_STARTED_EPOCH }}
+          MAX_FREE_RERUNS: ${{ env.MAX_FREE_RERUNS }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .veytrix-core/scripts/target_ci_recovery.sh
