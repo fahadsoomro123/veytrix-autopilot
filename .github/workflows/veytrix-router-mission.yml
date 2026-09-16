@@ -29,7 +29,6 @@ permissions:
 
 env:
   MAX_PROVIDER_ATTEMPTS: '2'
-  MAX_REPAIR_ROUNDS: '2'
 
 jobs:
   mission:
@@ -93,11 +92,10 @@ jobs:
           ai_available=false
           if [[ -n "${GEMINI_API_KEY:-}${GROQ_API_KEY:-}${CEREBRAS_API_KEY:-}${MISTRAL_API_KEY:-}${OPENROUTER_API_KEY:-}" ]]; then ai_available=true; fi
           decision="$(bash .veytrix-core/scripts/decide_engine.sh auto "$DETERMINISTIC_OUTCOME" "$MISSION" "$ai_available")"
-          printf '%s\n' "$decision" >> "$GITHUB_STEP_SUMMARY"
           while IFS='=' read -r key value; do printf '%s=%s\n' "$key" "$value" >> "$GITHUB_OUTPUT"; done <<< "$decision"
           echo "$decision"
 
-      - name: Stop when deterministic capability is sufficient
+      - name: Deterministic-only completion
         if: steps.decision.outputs.selected == 'github-free'
         run: |
           echo 'Deterministic verification is sufficient; no AI provider was invoked.'
@@ -107,7 +105,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cat > /tmp/veytrix-mission.md <<'PROMPT'
+          cat > /tmp/veytrix-mission.md <<PROMPT
           You are the source-repair agent inside Veytrix Smart Autopilot.
 
           Mission:
