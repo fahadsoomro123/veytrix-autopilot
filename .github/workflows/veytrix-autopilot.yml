@@ -19,7 +19,7 @@ on:
         default: "main"
         type: string
       engine:
-        description: "auto = AI when configured, otherwise deterministic-only"
+        description: "auto = deterministic-first; AI only when required"
         required: true
         default: "auto"
         type: choice
@@ -197,6 +197,7 @@ jobs:
     timeout-minutes: 55
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      AUTOPILOT_MISSION: ${{ inputs.mission }}
     steps:
       - name: Capture mission start boundary
         shell: bash
@@ -249,23 +250,43 @@ jobs:
           bash ../.veytrix-core/scripts/deterministic_verify.sh . > /tmp/veytrix-deterministic-verification.log 2>&1
           cat /tmp/veytrix-deterministic-verification.log
 
-      - name: Determine engine
-        id: engine
+      - name: Engine decision self-test
         shell: bash
         run: |
           set -euo pipefail
-          requested='${{ inputs.engine }}'
-          if [ "$requested" = 'github-free' ]; then
-            selected=github-free
-          elif [ "$requested" = 'ai' ] && [ -n "${OPENAI_API_KEY:-}" ]; then
-            selected=ai
-          elif [ "$requested" = 'auto' ] && [ -n "${OPENAI_API_KEY:-}" ]; then
-            selected=ai
-          else
-            selected=github-free
-          fi
-          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+          bash .veytrix-core/scripts/test_decide_engine.sh
+
+      - name: Determine engine
+        id: engine
+        env:
+          REQUESTED_ENGINE: ${{ inputs.engine }}
+          DETERMINISTIC_OUTCOME: ${{ steps.deterministic.outcome }}
+          MISSION: ${{ inputs.mission }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ai_available=false
+          if [[ -n "${OPENAI_API_KEY:-}" ]]; then ai_available=true; fi
+          decision="$(bash .veytrix-core/scripts/decide_engine.sh "$REQUESTED_ENGINE" "$DETERMINISTIC_OUTCOME" "$MISSION" "$ai_available")"
+          while IFS='=' read -r key value; do
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_OUTPUT"
+          done <<< "$decision"
+          selected="$(awk -F= '$1=="selected" {print $2}' <<< "$decision")"
+          reason="$(awk -F= '$1=="reason" {print $2}' <<< "$decision")"
           echo "Selected engine: $selected"
+          echo "Decision reason: $reason"
+          {
+            echo '### Veytrix engine decision'
+            echo "- Requested engine: $REQUESTED_ENGINE"
+            echo "- Deterministic verification outcome: $DETERMINISTIC_OUTCOME"
+            echo "- Selected engine: $selected"
+            echo "- Decision reason: $reason"
+            if [[ "$selected" == 'ai' ]]; then
+              echo '- AI escalation: required by decision boundary; API-key presence alone was not sufficient.'
+            else
+              echo '- AI escalation: not invoked by this decision.'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: AI mission execution
         if: steps.engine.outputs.selected == 'ai'
@@ -284,7 +305,7 @@ jobs:
             Deterministic-first contract:
             1. Inspect architecture and current state before editing.
             2. Deterministic inspection/verification has already run. Review /tmp/veytrix-deterministic-verification.log when present.
-            3. Use AI for the mission only after the deterministic phase; do not repeat deterministic work unnecessarily.
+            3. AI was selected only because the decision engine determined that deterministic verification was insufficient or the mission requires source-level reasoning.
             4. Make the smallest robust production-quality changes.
             5. Run narrow tests/build checks first, then final verification.
             6. Never expose or modify secrets, tokens, signing keys, keystores, credentials, or security controls.
@@ -293,15 +314,21 @@ jobs:
             9. Stop only when the mission is genuinely verified or a concrete blocker is proven.
             10. Report files changed, root causes, commands run, verification results, artifacts, and blockers.
 
-      - name: Deterministic-only blocker
+      - name: Deterministic-only result
         if: steps.engine.outputs.selected == 'github-free'
         shell: bash
         run: |
           set -euo pipefail
-          echo 'GitHub-free mode provides deterministic inspection/verification and safe infrastructure recovery only.'
-          echo 'It will not simulate source-code reasoning or claim an arbitrary implementation mission is complete.'
+          reason='${{ steps.engine.outputs.reason }}'
+          if [ '${{ steps.deterministic.outcome }}' = 'success' ] && [[ "$reason" == deterministic-capability-sufficient* ]]; then
+            echo 'Deterministic capability was sufficient for this verification-only mission.'
+            echo 'AI was not invoked.'
+            exit 0
+          fi
+          echo 'GitHub-free mode cannot claim completion of an arbitrary implementation mission.'
+          echo "Decision reason: $reason"
           if [ '${{ steps.deterministic.outcome }}' = 'success' ]; then
-            echo 'A deterministic verification command passed, but the requested mission still requires explicit mission-level proof.'
+            echo 'Deterministic verification passed, but that does not prove the requested implementation mission complete.'
           else
             echo 'Deterministic verification did not prove the requested mission complete.'
           fi
