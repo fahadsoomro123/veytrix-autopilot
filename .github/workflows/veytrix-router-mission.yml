@@ -1,0 +1,183 @@
+name: Veytrix Routed Autonomous Mission
+
+on:
+  workflow_dispatch:
+    inputs:
+      mission:
+        description: Autonomous engineering mission
+        required: true
+        type: string
+      target_repository:
+        description: Target repository owner/name
+        required: true
+        default: fahadsoomro123/nexusnova-app
+        type: string
+      branch:
+        description: Target branch
+        required: true
+        default: main
+        type: string
+      verification_command:
+        description: Optional deterministic verification command
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: write
+  actions: write
+
+env:
+  MAX_PROVIDER_ATTEMPTS: '2'
+  MAX_REPAIR_ROUNDS: '2'
+
+jobs:
+  mission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      TARGET_REPOSITORY: ${{ inputs.target_repository }}
+      TARGET_BRANCH: ${{ inputs.branch }}
+      MISSION: ${{ inputs.mission }}
+    steps:
+      - name: Checkout Veytrix core at exact workflow revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          path: .veytrix-core
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target_repository }}
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$MISSION"
+          test -n "$TARGET_REPOSITORY"
+          test -n "$TARGET_BRANCH"
+          bash .veytrix-core/scripts/deterministic_inspect.sh target
+
+      - name: Deterministic verification
+        id: deterministic
+        working-directory: target
+        env:
+          AUTOPILOT_VERIFY_COMMAND: ${{ inputs.verification_command }}
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ../.veytrix-core/scripts/deterministic_verify.sh . | tee /tmp/veytrix-deterministic.log
+
+      - name: Decide engine
+        id: decision
+        env:
+          DETERMINISTIC_OUTCOME: ${{ steps.deterministic.outcome }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ai_available=false
+          if [[ -n "${GEMINI_API_KEY:-}${GROQ_API_KEY:-}${CEREBRAS_API_KEY:-}${MISTRAL_API_KEY:-}${OPENROUTER_API_KEY:-}" ]]; then ai_available=true; fi
+          decision="$(bash .veytrix-core/scripts/decide_engine.sh auto "$DETERMINISTIC_OUTCOME" "$MISSION" "$ai_available")"
+          printf '%s\n' "$decision" >> "$GITHUB_STEP_SUMMARY"
+          while IFS='=' read -r key value; do printf '%s=%s\n' "$key" "$value" >> "$GITHUB_OUTPUT"; done <<< "$decision"
+          echo "$decision"
+
+      - name: Stop when deterministic capability is sufficient
+        if: steps.decision.outputs.selected == 'github-free'
+        run: |
+          echo 'Deterministic verification is sufficient; no AI provider was invoked.'
+
+      - name: Write bounded AI mission prompt
+        if: steps.decision.outputs.selected == 'ai'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/veytrix-mission.md <<'PROMPT'
+          You are the source-repair agent inside Veytrix Smart Autopilot.
+
+          Mission:
+          ${MISSION}
+
+          Target repository:
+          ${TARGET_REPOSITORY}
+
+          Target branch:
+          ${TARGET_BRANCH}
+
+          Contract:
+          - Inspect the repository before editing.
+          - Deterministic verification has already run; review /tmp/veytrix-deterministic.log when present.
+          - Make the smallest correct production-quality source changes needed for the mission.
+          - Run focused tests/build checks after editing.
+          - Never modify or expose secrets, credentials, signing keys, tokens, or security controls.
+          - Never disable tests or verification.
+          - Do not commit or push; the outer workflow handles that.
+          - Leave the working tree with the verified repair applied.
+          PROMPT
+
+      - name: Routed AI repair with free-provider cascade
+        if: steps.decision.outputs.selected == 'ai'
+        env:
+          VEYTRIX_AI_PROVIDER: auto
+          VEYTRIX_AI_PROVIDER_ATTEMPTS: ${{ env.MAX_PROVIDER_ATTEMPTS }}
+        run: |
+          set -euo pipefail
+          bash .veytrix-core/scripts/ai_router.sh /tmp/veytrix-mission.md "$GITHUB_WORKSPACE/target"
+
+      - name: Verify AI result
+        if: steps.decision.outputs.selected == 'ai'
+        working-directory: target
+        env:
+          AUTOPILOT_VERIFY_COMMAND: ${{ inputs.verification_command }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ../.veytrix-core/scripts/deterministic_verify.sh .
+
+      - name: Commit and push verified result
+        if: steps.decision.outputs.selected == 'ai'
+        working-directory: target
+        env:
+          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo 'No source changes produced; refusing to claim completion.'
+            exit 20
+          fi
+          git config user.name 'Veytrix Smart Autopilot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${TARGET_REPOSITORY}.git"
+          git add -A
+          git commit -m 'veytrix: complete routed autonomous mission'
+          git push origin "HEAD:${TARGET_BRANCH}"
+
+      - name: Final evidence
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### Routed mission evidence'
+            echo "- Target: ${TARGET_REPOSITORY}@${TARGET_BRANCH}"
+            echo "- Deterministic outcome: ${{ steps.deterministic.outcome }}"
+            echo "- Engine: ${{ steps.decision.outputs.selected || 'not selected' }}"
+            echo "- Reason: ${{ steps.decision.outputs.reason || 'n/a' }}"
+            echo '- AI provider policy: free-first cascade with bounded fallback.'
+            echo '- Completion requires post-repair deterministic verification.'
+          } >> "$GITHUB_STEP_SUMMARY"
