@@ -1,0 +1,80 @@
+name: Veytrix Free AI Router Gate
+
+on:
+  push:
+    branches: ['migration/forensic-smart-autopilot-ai-router']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  router-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prove deterministic boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          AUTOPILOT_VERIFY_COMMAND='python -c "raise SystemExit(1)"' bash scripts/deterministic_verify.sh . >/tmp/deterministic.log 2>&1
+          status=$?
+          set -e
+          test "$status" -ne 0
+          echo 'Deterministic failure intentionally reproduced.'
+
+      - name: Prove AI router selection
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GEMINI_API_KEY:-}${GROQ_API_KEY:-}${OPENROUTER_API_KEY:-}"
+          if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+            echo 'Expected provider: Gemini free tier'
+          elif [[ -n "${GROQ_API_KEY:-}" ]]; then
+            echo 'Expected provider: Groq free tier'
+          else
+            echo 'Expected provider: OpenRouter free tier'
+          fi
+
+      - name: Create controlled repair fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/veytrix-router-fixture
+          mkdir -p /tmp/veytrix-router-fixture
+          cat > /tmp/veytrix-router-fixture/fixture.py <<'PY'
+          def status():
+              return "BROKEN"
+          PY
+          cat > /tmp/veytrix-router-fixture/test_fixture.py <<'PY'
+          from fixture import status
+          assert status() == "READY", status()
+          PY
+          cat > /tmp/veytrix-router-fixture/repair-prompt.md <<'MD'
+          Repair the controlled fixture in this directory. Inspect fixture.py and test_fixture.py.
+          Make the smallest source-only change required so that `python test_fixture.py` passes.
+          Do not modify test_fixture.py. Do not access, print, or modify secrets. Do not change files outside this fixture.
+          Run the test before finishing and leave the repaired source in the working directory.
+          MD
+
+      - name: Run routed free AI repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/ai_router.sh /tmp/veytrix-router-fixture/repair-prompt.md /tmp/veytrix-router-fixture
+
+      - name: Verify routed repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/veytrix-router-fixture/test_fixture.py
+          grep -q 'READY' /tmp/veytrix-router-fixture/fixture.py
+          echo 'FREE AI ROUTER GATE: PASS'
