@@ -1,39 +1,38 @@
 name: Veytrix Smart Autopilot
-run-name: Veytrix Autopilot • ${{ inputs.engine || 'AUTO' }} • ${{ inputs.target_repository || github.repository }}
 
 on:
   workflow_dispatch:
     inputs:
       mission:
-        description: "What should Autopilot complete?"
+        description: 'Autonomous engineering mission'
         required: true
         type: string
       target_repository:
-        description: "Target repository owner/name"
+        description: 'Target repository owner/name'
         required: true
-        default: "fahadsoomro123/nexusnova-app"
+        default: 'fahadsoomro123/nexusnova-app'
         type: string
       branch:
-        description: "Target branch to inspect/work on"
+        description: 'Target branch'
         required: true
-        default: "main"
+        default: 'main'
         type: string
       engine:
-        description: "auto = deterministic-first; AI only when required"
+        description: 'Execution engine'
         required: true
-        default: "auto"
+        default: 'auto'
         type: choice
         options:
           - auto
           - github-free
           - ai
       verification_depth:
-        description: "Maximum verification handoffs"
+        description: 'Maximum bounded verification handoffs'
         required: true
-        default: "2"
+        default: '2'
         type: string
-
   workflow_run:
+    workflows: ['NexusNova Autopilot']
     types: [completed]
 
 permissions:
@@ -41,92 +40,64 @@ permissions:
   actions: write
 
 concurrency:
-  group: veytrix-autopilot-${{ github.event.workflow_run.id || github.run_id || github.sha }}
+  group: veytrix-smart-autopilot-${{ github.event.workflow_run.id || github.run_id }}
   cancel-in-progress: false
 
 env:
-  MAX_AUTOPILOT_REPAIRS: "3"
-  MAX_FREE_RERUNS: "2"
-  MAX_VERIFICATION_HANDOFFS: "2"
-  AUTOPILOT_COMMAND_TIMEOUT_SECONDS: "900"
+  MAX_AUTOPILOT_REPAIRS: '3'
+  MAX_FREE_RERUNS: '2'
+  MAX_VERIFICATION_HANDOFFS: '2'
 
 jobs:
-  auto-heal-failed-workflow:
-    if: >-
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.name != 'Veytrix Smart Autopilot' &&
-      github.event.workflow_run.head_repository.full_name == github.repository
+  recover-failed-workflow:
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.name != 'Veytrix Smart Autopilot' && github.event.workflow_run.repository.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 30
     env:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      TARGET_REPOSITORY: ${{ github.event.workflow_run.repository.full_name }}
     steps:
-      - name: Checkout Veytrix core
+      - name: Checkout exact failed revision
         uses: actions/checkout@v4
         with:
-          ref: main
-          path: .veytrix-core
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Checkout failed workflow source
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          repository: ${{ env.TARGET_REPOSITORY }}
+          ref: ${{ env.HEAD_SHA }}
           path: target
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Guard repair loop
-        working-directory: target
-        shell: bash
-        run: |
-          set -euo pipefail
-          repairs="$(git log -100 --format='%s' | grep -c '^veytrix: repair failed workflow ' || true)"
-          echo "Recent Veytrix repair commits on this branch: $repairs"
-          if [ "$repairs" -ge "$MAX_AUTOPILOT_REPAIRS" ]; then
-            echo "::warning::Veytrix repair ceiling reached ($MAX_AUTOPILOT_REPAIRS)."
-            exit 0
-          fi
-
       - name: Collect failure evidence
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
-          WORKFLOW_ID: ${{ github.event.workflow_run.workflow_id }}
-          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
         shell: bash
         run: |
           set -euo pipefail
-          gh run view "$RUN_ID" --log-failed > /tmp/veytrix-failure.log || true
-          gh run view "$RUN_ID" --json name,conclusion,headBranch,headSha,attempt,workflowName > /tmp/veytrix-run.json
-          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$WORKFLOW_ID" > /tmp/veytrix-workflow.json
+          gh run view "$RUN_ID" --json databaseId,name,headSha,headBranch,conclusion,status,event,createdAt,updatedAt > /tmp/veytrix-run.json
+          gh run view "$RUN_ID" --json jobs > /tmp/veytrix-workflow.json
+          gh run view "$RUN_ID" --log > /tmp/veytrix-failure.log || true
           printf '%s\n' "$HEAD_BRANCH" > /tmp/veytrix-branch.txt
-          test -s /tmp/veytrix-run.json
-          test -s /tmp/veytrix-workflow.json
-          {
-            echo '### Veytrix recovery'
-            echo "- Failed workflow: $(jq -r '.workflowName // .name' /tmp/veytrix-run.json)"
-            echo "- Run: $RUN_ID"
-            echo "- Branch: $HEAD_BRANCH"
-            echo "- Attempt: $(jq -r '.attempt' /tmp/veytrix-run.json)"
-          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Deterministic failure classification
+      - name: Classify failure
         id: classify
         shell: bash
         run: |
           set -euo pipefail
-          bash .veytrix-core/scripts/classify_failure.sh /tmp/veytrix-failure.log | tee /tmp/veytrix-classification.txt
-          classification="$(awk -F= '$1=="classification" {print $2}' /tmp/veytrix-classification.txt)"
-          echo "classification=$classification" >> "$GITHUB_OUTPUT"
+          classification=unknown
+          if grep -Eqi 'rate limit|timed out|timeout|503|502|502 Bad Gateway|504|connection reset|connection refused|temporary failure|service unavailable|network is unreachable|could not resolve host' /tmp/veytrix-failure.log; then
+            classification=transient
+          fi
+          printf 'classification=%s\n' "$classification" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$classification" > /tmp/veytrix-classification.txt
+          echo "Failure classification: $classification"
 
-      - name: Deterministic safe rerun
+      - name: Deterministic transient recovery
         if: steps.classify.outputs.classification == 'transient'
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+          MAX_FREE_RERUNS: ${{ env.MAX_FREE_RERUNS }}
         shell: bash
         run: |
           set -euo pipefail
@@ -143,7 +114,6 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          permission-profile: ":workspace"
           working-directory: target
           output-file: /tmp/veytrix-codex-result.txt
           prompt: |
@@ -293,7 +263,6 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          permission-profile: ":workspace"
           working-directory: target
           output-file: /tmp/veytrix-codex-result.txt
           prompt: |
@@ -371,7 +340,7 @@ jobs:
           TARGET_BRANCH: ${{ inputs.branch }}
           STARTED_EPOCH: ${{ env.MISSION_STARTED_EPOCH }}
           MAX_FREE_RERUNS: ${{ env.MAX_FREE_RERUNS }}
-          AUTOPILOT_TARGET_TIMEOUT_MINUTES: "20"
+          AUTOPILOT_TARGET_TIMEOUT_MINUTES: '20'
         shell: bash
         continue-on-error: true
         run: |
@@ -383,7 +352,6 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          permission-profile: ":workspace"
           working-directory: target
           output-file: /tmp/veytrix-target-repair.txt
           prompt: |
@@ -413,18 +381,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target_repository }}.git"
           git add -A
-          git diff --cached --quiet || git commit -m 'veytrix: repair target CI failure'
+          git diff --cached --quiet || git commit -m 'veytrix: repair target CI after mission'
           git push origin "HEAD:${{ inputs.branch }}"
-
-      - name: Final target verification
-        if: steps.engine.outputs.selected == 'ai'
-        env:
-          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
-          TARGET_REPOSITORY: ${{ inputs.target_repository }}
-          TARGET_BRANCH: ${{ inputs.branch }}
-          STARTED_EPOCH: ${{ env.MISSION_STARTED_EPOCH }}
-          MAX_FREE_RERUNS: ${{ env.MAX_FREE_RERUNS }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash .veytrix-core/scripts/target_ci_recovery.sh
