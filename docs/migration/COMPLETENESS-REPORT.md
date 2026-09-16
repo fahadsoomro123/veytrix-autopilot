@@ -5,63 +5,72 @@ Source: `fahadsoomro123/nexusnova-app`
 Target: `fahadsoomro123/veytrix-autopilot`
 Branch: `migration/forensic-smart-autopilot`
 
-## Audit result
+## Final proof-gate state
 
-The Smart Autopilot implementation was traced beyond the known workflow. The discovered family includes the main orchestration workflow, deterministic self-test, E2E fixture, Android control plane/module, Android build configuration, and NexusNova-specific signed-release integration.
+The migration implementation remains on the dedicated branch and has not been merged to `main`. The source NexusNova repository was not modified, deleted, or cleaned during these proof gates.
 
-## Migrated
+| Mandatory gate | Result | Evidence / blocker |
+|---|---|---|
+| Real Android build | PASS | Run `35136969892` completed successfully on the Kotlin-alignment fix commit. |
+| Real APK artifact verification | PASS | Artifact downloaded; ZIP test passed; APK checksum matched the recorded checksum exactly; Android package and signing-block checks passed. |
+| Real self-healing E2E | PASS | Run `35137711301`: attempt 1 intentionally failed; the failed job was rerun; attempt 2 completed successfully and wrote the verification marker. |
+| Controlled NexusNova target mission | BLOCKED | Target repository identity resolves, but this session's GitHub tool surface does not expose workflow-dispatch POST, so a fresh Veytrix manual mission against NexusNova could not be launched. |
+| Target-CI failure/recovery observation | BLOCKED | Without the controlled target mission, target-CI recovery cannot be observed end-to-end without modifying the source repository, which is prohibited for this proof pass. |
+| Final migration completeness verification | BLOCKED | Gates 4 and 5 are not proven, so zero-gap completion cannot be declared. |
 
-- Core mission orchestration and workflow-run recovery logic.
-- Deterministic failure classification.
-- Bounded transient failed-job reruns.
-- Failure evidence collection.
-- AI escalation path with explicit deterministic-first contract.
-- Bounded repair and verification handoffs.
-- Deterministic repository inspection.
-- Deterministic verification.
-- Artifact integrity verifier.
-- Self-healing E2E probe and fixture.
-- Android control plane: secure token storage, GitHub connection verification, target repository selection, workflow dispatch, run polling, artifacts/history, templates, voice input and theme.
-- Standalone Android build root.
-- Cross-repository target CI observation and deterministic transient recovery.
+## Capability-to-proof matrix
 
-## Intentionally excluded
+| Source capability | Target capability | Proof status |
+|---|---|---|
+| Main Autopilot orchestration | `.github/workflows/veytrix-autopilot.yml` | Implemented; live end-to-end mission proof blocked |
+| Workflow dispatch mission inputs | Veytrix manual mission inputs | Implemented; target mission dispatch unavailable from current tool surface |
+| Workflow-run failure detection | Veytrix `workflow_run` recovery job | Implemented; current target self-run observed in earlier CI history |
+| Failure evidence collection | `gh run view --log-failed` + run metadata | Implemented; live target mission proof blocked |
+| Deterministic failure classification | `scripts/classify_failure.sh` | Implemented; self-test demonstrates deterministic transient behavior |
+| Safe failed-job rerun | bounded rerun branch | Demonstrated by real self-test failed-job rerun |
+| Bounded retry ceilings | environment ceilings / guard logic | Implemented; full outer-loop live observation blocked |
+| AI escalation boundary | `openai/codex-action` path | Implemented; live controlled mission proof blocked |
+| Deterministic repository inspection | `scripts/deterministic_inspect.sh` | Implemented; live NexusNova execution not dispatched |
+| Deterministic verification | `scripts/deterministic_verify.sh` | Implemented; Android build verification is live |
+| Artifact validation | Android artifact step + local APK validation | PASS |
+| Self-healing E2E | `.github/workflows/veytrix-autopilot-self-test.yml` | PASS |
+| Android control plane | `android/autopilot` | Android build PASS; field-level UI runtime proof not exercised |
+| NexusNova repository adapter boundary | target repository workflow inputs | Implemented; live target mission blocked |
+| NexusNova business/product code exclusion | Veytrix standalone boundary | PASS by source/target mapping; source protected |
 
-- NexusNova product/business code, UI, token/mining/wallet features, Firebase product logic, and unrelated Android modules: outside Smart Autopilot scope.
-- NexusNova parent Gradle configuration: replaced with a minimal standalone Veytrix Android root because the source file is a product-level integration point.
-- NexusNova signed-release workflow and keystore materials: security-sensitive and package-specific; no signing secret or keystore is copied into Veytrix.
+## Security-sensitive decisions
 
-## Improvements made
+- No NexusNova keystore, API credential, signing key, or private secret was copied into Veytrix.
+- The Veytrix Android client uses secure token storage and does not embed secrets in source.
+- The standalone Android debug APK is not treated as production release-signing proof.
+- No source destructive Git operations were used.
 
-1. Target checkout is physically separated from the Veytrix core checkout.
-2. Target repository is an explicit workflow input rather than a hardcoded product repository.
-3. Generic missions in GitHub-free mode fail with a concrete blocker rather than falsely claiming completion.
-4. Deterministic target-CI observation can collect logs, classify failures and rerun only failed jobs for recognized transient signatures.
-5. Android build received an explicit Kotlin stdlib alignment rule after live CI exposed a duplicate-class dependency conflict.
-6. Android manifest disables cleartext traffic and backup for the standalone control app.
+## Real Android artifact evidence
 
-## Live verification evidence
+GitHub artifact: `Veytrix-Autopilot-debug`.
 
-### Android build run 1
+Artifact SHA-256 from GitHub metadata: `e61028a6ebdb23fca2182e0333c1e1c21c94b08a090b81c4610c0e4f7eb706bb` for the artifact archive.
 
-Run `35136715247` reached the real Gradle compile pipeline. Java setup, Gradle setup, resource processing and Java compilation completed; the build failed at `:autopilot:checkDebugDuplicateClasses` because Kotlin stdlib artifacts were mismatched (`1.8.22` vs `1.6.21`). This was used as deterministic failure evidence to make the Kotlin alignment fix.
+Extracted APK SHA-256: `3512b74c3e555812329b9b3574bbeb7d95f5dcbb7eb11db00347fd8f99d70bfa`.
 
-### Android build run 3
+The embedded checksum file reports the same APK digest. ZIP integrity testing passed with no errors. The APK contains an Android Signing Block and its compiled manifest string pool contains the Veytrix debug identity `com.veytrix.autopilot.debug` and `com.veytrix.autopilot.MainActivity`. The module declares version name `1.0.0` and version code `10001`.
 
-Run `35136969892` was automatically created by the dependency-fix commit `526298a24aa915ccffaa6ae81bd347f09a706173`. At the latest observation it was still executing `:autopilot:assembleDebug`; its completion must be checked before claiming APK verification success.
+## Real self-healing evidence
 
-### Veytrix Autopilot workflow
+Run `35137711301` was triggered from the migration branch by a controlled fixture change. Attempt 1 failed at the deterministic transient probe by design. The specific failed job was rerun. The rerun reached attempt 2, passed the transient probe, and passed the verification-marker step. This is genuine CI execution evidence, not static inspection.
 
-An earlier push-triggered historical run (`35136728268`) completed with failure and did not expose a job payload. This run predates the final deterministic-first workflow shape now present on the migration branch and is not treated as proof of current workflow correctness.
+## Deterministic-vs-AI invariant
 
-## Remaining gates
+A live self-test proves a deterministic recovery path exists and succeeds without AI. The full routing invariant cannot be signed off yet because a fresh controlled manual mission cannot be launched from the currently available GitHub connector operations.
 
-- Confirm the latest Android build completes, produces a non-empty APK, checksum and artifact.
-- Run the self-healing E2E probe in GitHub Actions and inspect its first-failure/second-attempt recovery evidence.
-- Execute a controlled Veytrix mission against a target repository with `VEYTRIX_GITHUB_TOKEN` configured.
-- Observe target CI logs/recovery and AI escalation behavior in a real mission.
-- Inspect final artifacts and create a final zero-gap signoff only after these gates pass.
+Additionally, the current `auto` selector is not sufficient proof of the strict invariant because it selects AI whenever an OpenAI key is present rather than deriving AI necessity from deterministic-proof failure. Therefore the final `NO-AI SOLVABLE TASK → NO AI INVOCATION` contract remains an explicit blocker for final zero-gap sign-off.
 
 ## Source protection
 
-No source deletion, source cleanup, or unrelated NexusNova modification was performed during this migration. The NexusNova Autopilot reference remains intact.
+`fahadsoomro123/nexusnova-app` remained intact. No source deletion, cleanup, or unrelated product modification was performed during the proof-gate pass.
+
+## Final decision
+
+**MIGRATION IMPLEMENTED — VERIFICATION BLOCKED**
+
+The implementation is not being marked `MIGRATION VERIFIED / COMPLETE` because mandatory Gates 4 and 5 were not genuinely executable from the available GitHub control surface, and Gate 6 therefore cannot pass.
