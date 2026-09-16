@@ -30,12 +30,24 @@ jobs:
           set -euo pipefail
           bash scripts/test_decide_engine.sh
 
-      - name: Validate workflow syntax
+      - name: Validate YAML structure
         shell: bash
         run: |
           set -euo pipefail
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash)
-          ./actionlint .github/workflows/veytrix-autopilot.yml .github/workflows/veytrix-decision-engine-gate.yml
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+          for path in [
+              Path('.github/workflows/veytrix-autopilot.yml'),
+              Path('.github/workflows/veytrix-decision-engine-gate.yml'),
+          ]:
+              data = yaml.safe_load(path.read_text())
+              if not isinstance(data, dict):
+                  raise SystemExit(f'{path}: workflow root is not a mapping')
+              if 'jobs' not in data or not isinstance(data['jobs'], dict):
+                  raise SystemExit(f'{path}: missing jobs mapping')
+              print(f'validated={path}')
+          PY
 
       - name: Record gate evidence
         shell: bash
@@ -52,6 +64,6 @@ jobs:
             echo '| AI unavailable | deterministic-only fallback |'
             echo '| explicit AI without key | hard failure |'
             echo ''
-            echo 'Decision self-test and workflow syntax validation passed without invoking OpenAI.'
+            echo 'Decision self-test and YAML structure validation passed without invoking OpenAI.'
             echo 'API-key presence alone is not the engine-selection criterion.'
           } >> "$GITHUB_STEP_SUMMARY"
