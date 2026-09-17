@@ -1,0 +1,121 @@
+name: Veytrix Free Gemini AI Gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      mission:
+        description: 'Controlled AI repair mission'
+        required: true
+        default: 'Repair the controlled fixture and make its test pass'
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  GEMINI_MODEL: gemini-3.8-flash
+
+jobs:
+  free-gemini-escalation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout VEYTRIX
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check free provider credential
+        id: provider
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'GEMINI_API_KEY is not configured. Add a free Gemini API key as a repository secret.'
+            exit 0
+          fi
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+          echo 'Gemini free provider credential is configured (value remains masked).'
+
+      - name: Deterministic failure fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/veytrix-free-gemini
+          cat > /tmp/veytrix-free-gemini/fixture.py <<'PY'
+          def status():
+              return "BROKEN"
+          PY
+          cat > /tmp/veytrix-free-gemini/test_fixture.py <<'PY'
+          from fixture import status
+          assert status() == "READY", f"unexpected status: {status()}"
+          PY
+          if python /tmp/veytrix-free-gemini/test_fixture.py; then
+            echo 'unexpected deterministic pass'
+            exit 1
+          else
+            echo 'deterministic verification failed as intended'
+          fi
+
+      - name: Confirm decision engine selects AI
+        if: steps.provider.outputs.configured == 'true'
+        env:
+          MISSION: ${{ inputs.mission }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          decision="$(bash scripts/decide_engine.sh auto failure "$MISSION" true)"
+          echo "$decision"
+          grep -q '^selected=ai$' <<< "$decision"
+          grep -q '^reason=deterministic-verification-insufficient$' <<< "$decision"
+
+      - name: Prepare controlled repair workspace
+        if: steps.provider.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/veytrix-free-gemini/PROMPT.md <<'EOF'
+You are the AI escalation component of Veytrix Smart Autopilot.
+
+This is a disposable controlled fixture. Repair ONLY /tmp/veytrix-free-gemini/fixture.py so that:
+python /tmp/veytrix-free-gemini/test_fixture.py
+passes.
+
+Rules:
+- Inspect the fixture and test first.
+- Make the smallest source-only repair.
+- Do not modify the test.
+- Do not access, print, copy, or modify secrets or credentials.
+- Do not modify files outside this disposable fixture.
+- Run the test after the repair and stop only after it passes.
+EOF
+
+      - name: Run free Gemini agent
+        if: steps.provider.outputs.configured == 'true'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ env.GEMINI_MODEL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/gemini_free_agent.sh /tmp/veytrix-free-gemini/PROMPT.md
+
+      - name: Verify AI repair
+        if: steps.provider.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python /tmp/veytrix-free-gemini/test_fixture.py
+          grep -q 'READY' /tmp/veytrix-free-gemini/fixture.py
+          echo 'FREE GEMINI AI ESCALATION: PASS'
+
+      - name: Explain setup when key is absent
+        if: steps.provider.outputs.configured != 'true'
+        shell: bash
+        run: |
+          echo 'Gate intentionally stopped before AI execution because GEMINI_API_KEY is absent.'
+          echo 'Create a free Gemini API key, save it as repository secret GEMINI_API_KEY, then rerun this workflow.'
