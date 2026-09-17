@@ -1,4 +1,4 @@
-const DEFAULT_MAX_DISCOVERED = 100_000;
+const DEFAULT_MAX_DISCOVERED = 3_000_000;
 
 export class FreeAiMesh {
   constructor({
@@ -12,9 +12,9 @@ export class FreeAiMesh {
     }
 
     this.adapter = adapter;
-    this.maxAttempts = Math.max(1, Math.min(maxAttempts, maxDiscovered));
-    this.cooldownMs = Math.max(1, cooldownMs);
     this.maxDiscovered = Math.max(1, Math.min(maxDiscovered, DEFAULT_MAX_DISCOVERED));
+    this.maxAttempts = Math.max(1, Math.min(maxAttempts, this.maxDiscovered));
+    this.cooldownMs = Math.max(1, cooldownMs);
     this.health = new Map();
     this.models = [];
   }
@@ -38,18 +38,46 @@ export class FreeAiMesh {
     return this.models;
   }
 
-  score(model, index) {
-    const h = this.health.get(model.id) || { successes: 0, failures: 0, cooldownUntil: 0 };
+  scoreHealth(modelId, index = 0) {
+    const h = this.health.get(modelId) || { successes: 0, failures: 0, cooldownUntil: 0 };
     if (h.cooldownUntil > Date.now()) return Number.NEGATIVE_INFINITY;
     return (h.successes * 5) - (h.failures * 10) - index * 0.000001;
   }
 
+  *candidateSequence() {
+    const now = Date.now();
+    const preferred = [];
+
+    // Only sort lanes we have actually used successfully. In a 3M-lane mesh,
+    // this keeps routing proportional to the active health set instead of
+    // sorting millions of discovered entries on every request.
+    for (const [id, health] of this.health.entries()) {
+      if (health.successes > 0 && health.cooldownUntil <= now) {
+        preferred.push({ id, score: (health.successes * 5) - (health.failures * 10) });
+      }
+    }
+    preferred.sort((a, b) => b.score - a.score);
+
+    const preferredIds = new Set();
+    for (const item of preferred) {
+      preferredIds.add(item.id);
+      const model = this.models.find(candidate => candidate.id === item.id);
+      if (model) yield model;
+    }
+
+    // Then walk the discovered pool without a full-array sort. Failed/cooldown
+    // lanes are skipped until their cooldown expires.
+    for (let index = 0; index < this.models.length; index += 1) {
+      const model = this.models[index];
+      if (preferredIds.has(model.id)) continue;
+      const health = this.health.get(model.id);
+      if (health && health.cooldownUntil > now) continue;
+      yield model;
+    }
+  }
+
   route() {
-    return [...this.models]
-      .map((model, index) => ({ model, score: this.score(model, index) }))
-      .filter(x => Number.isFinite(x.score))
-      .sort((a, b) => b.score - a.score)
-      .map(x => x.model);
+    return [...this.candidateSequence()];
   }
 
   recordSuccess(id) {
@@ -69,10 +97,13 @@ export class FreeAiMesh {
   async ask(task) {
     if (!this.models.length) await this.discover();
 
-    const candidates = this.route();
     const attempts = [];
+    let attempted = 0;
 
-    for (const model of candidates.slice(0, this.maxAttempts)) {
+    for (const model of this.candidateSequence()) {
+      if (attempted >= this.maxAttempts) break;
+      attempted += 1;
+
       try {
         const started = Date.now();
         const result = await this.adapter.chat(model.id, { task });
@@ -99,7 +130,7 @@ export class FreeAiMesh {
       }
     }
 
-    const error = new Error(`All ${candidates.length} eligible Free AI lanes exhausted`);
+    const error = new Error(`Free AI mesh exhausted after ${attempted} attempts`);
     error.attempts = attempts;
     throw error;
   }
