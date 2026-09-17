@@ -39,13 +39,23 @@ jobs:
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
     steps:
+      - name: Checkout controller core
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: .veytrix-core
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Checkout exact failed revision
         uses: actions/checkout@v4
         with:
           ref: ${{ env.HEAD_SHA }}
+          path: target
           fetch-depth: 100
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Collect sanitized failure evidence
         shell: bash
@@ -54,7 +64,7 @@ jobs:
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json databaseId,name,headSha,headBranch,attempt,status,conclusion,event,createdAt,updatedAt > /tmp/veytrix-run.json
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json jobs > /tmp/veytrix-jobs.json
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --log-failed > /tmp/veytrix-raw.log || true
-          bash scripts/sanitize_failure_log.sh /tmp/veytrix-raw.log /tmp/veytrix-failure.log
+          bash .veytrix-core/scripts/sanitize_failure_log.sh /tmp/veytrix-raw.log /tmp/veytrix-failure.log
           printf '%s\n' "$HEAD_BRANCH" > /tmp/veytrix-branch.txt
           test -s /tmp/veytrix-run.json
           test -s /tmp/veytrix-failure.log
@@ -64,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/failure_fingerprint.sh /tmp/veytrix-failure.log "$FAILED_WORKFLOW" "$HEAD_SHA" | tee /tmp/veytrix-fingerprint.txt
+          bash .veytrix-core/scripts/failure_fingerprint.sh /tmp/veytrix-failure.log "$FAILED_WORKFLOW" "$HEAD_SHA" | tee /tmp/veytrix-fingerprint.txt
           classification="$(awk -F= '$1=="classification"{print $2}' /tmp/veytrix-fingerprint.txt)"
           fingerprint="$(awk -F= '$1=="fingerprint"{print $2}' /tmp/veytrix-fingerprint.txt)"
           echo "classification=$classification" >> "$GITHUB_OUTPUT"
@@ -104,7 +114,7 @@ jobs:
           FINGERPRINT: ${{ steps.fingerprint.outputs.fingerprint }}
         run: |
           set -euo pipefail
-          repair_count="$(git log --all --format='%s' | grep -F -c "[veytrix-autopilot-repair][fp:${FINGERPRINT}]" || true)"
+          repair_count="$(git -C target log --all --format='%s' | grep -F -c "[veytrix-autopilot-repair][fp:${FINGERPRINT}]" || true)"
           echo "Identical failure fingerprint repair count: $repair_count"
           if (( repair_count >= MAX_AUTOPILOT_REPAIRS )); then
             echo 'repair_allowed=false' >> "$GITHUB_OUTPUT"
@@ -117,6 +127,7 @@ jobs:
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          working-directory: target
           output-file: /tmp/veytrix-codex-result.txt
           prompt: |
             You are Veytrix's autonomous CI repair engineer.
@@ -155,6 +166,7 @@ jobs:
 
       - name: Verify repair before publication
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
+        working-directory: target
         shell: bash
         run: |
           set -euo pipefail
@@ -164,8 +176,8 @@ jobs:
             echo 'AI produced no source change; refusing blind rerun.'
             exit 1
           fi
-          if [ -f scripts/deterministic_verify.sh ]; then
-            bash scripts/deterministic_verify.sh . || {
+          if [ -f ../.veytrix-core/scripts/deterministic_verify.sh ]; then
+            bash ../.veytrix-core/scripts/deterministic_verify.sh . || {
               rc=$?
               if [[ $rc -ne 20 ]]; then exit $rc; fi
               echo 'No generic deterministic verifier matched this project; continuing with diff checks.'
@@ -176,12 +188,14 @@ jobs:
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
         env:
           FINGERPRINT: ${{ steps.fingerprint.outputs.fingerprint }}
+        working-directory: target
         shell: bash
         run: |
           set -euo pipefail
-          bash scripts/verify_remote_head.sh "$GITHUB_REPOSITORY" "$HEAD_BRANCH" "$HEAD_SHA"
+          bash ../.veytrix-core/scripts/verify_remote_head.sh "$GITHUB_REPOSITORY" "$HEAD_BRANCH" "$HEAD_SHA"
           git config user.name 'veytrix-autopilot[bot]'
           git config user.email 'veytrix-autopilot[bot]@users.noreply.github.com'
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
           git add -A
           git diff --cached --quiet && exit 1
           git commit -m "veytrix: [veytrix-autopilot-repair][fp:${FINGERPRINT}] repair ${FAILED_WORKFLOW} run ${RUN_ID}"
@@ -197,6 +211,8 @@ jobs:
             echo "- Workflow: $FAILED_WORKFLOW"
             echo "- Run: $RUN_ID"
             echo "- Failed SHA: $HEAD_SHA"
+            echo "- Classification: ${{ steps.fingerprint.outputs.classification }}"
+            echo "- Fingerprint: ${{ steps.fingerprint.outputs.fingerprint }}"
             if [ '${{ steps.blocker.outputs.blocked }}' = 'true' ]; then
               echo '- Result: blocked by credential/security/external configuration evidence.'
             elif [ '${{ steps.guard.outputs.repair_allowed }}' = 'false' ]; then
