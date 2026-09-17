@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout controller core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
           path: .veytrix-core
@@ -50,7 +50,7 @@ jobs:
           persist-credentials: false
 
       - name: Checkout exact failed revision
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.HEAD_SHA }}
           path: target
