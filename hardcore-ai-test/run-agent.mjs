@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { FreeAiMesh } from '../free-ai-mesh/FreeAiMesh.mjs';
+import { FreeAiMesh } from '../../free-ai-mesh/FreeAiMesh.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = path.join(ROOT, 'src', 'scheduler.mjs');
@@ -11,8 +11,8 @@ const SPEC = path.join(ROOT, 'test', 'spec.mjs');
 const REPORT_PATH = path.join(ROOT, 'report.json');
 const HORDE_BASE = 'https://oai.aihorde.net/v1';
 const ANON_KEY = '0000000000';
-const MAX_MODELS = Number(process.env.QUICK_MAX_MODELS || 6);
-const MODEL_TIMEOUT_MS = Number(process.env.QUICK_MODEL_TIMEOUT_MS || 60000);
+const MAX_MODELS = Number(process.env.QUICK_MAX_MODELS || 4);
+const MODEL_TIMEOUT_MS = Number(process.env.QUICK_MODEL_TIMEOUT_MS || 45000);
 const REPAIR_ROUNDS = 1;
 
 const read = file => fs.readFileSync(file, 'utf8');
@@ -33,11 +33,11 @@ function extractFile(text) {
     const fenceEnd = text.indexOf('```', afterFence + 1);
     if (afterFence >= 0 && fenceEnd > afterFence) {
       const candidate = text.slice(afterFence + 1, fenceEnd).trim();
-      if (candidate.includes('mergeHeaders')) return candidate;
+      if (candidate.includes('parseKeyValuePairs')) return candidate;
     }
   }
 
-  const exportStart = text.indexOf('export function mergeHeaders');
+  const exportStart = text.indexOf('export function parseKeyValuePairs');
   if (exportStart >= 0) return text.slice(exportStart).trim();
 
   throw new Error('model response did not contain a parseable scheduler.mjs');
@@ -67,7 +67,7 @@ async function horde(pathname, init = {}) {
 async function discoverModels() {
   const data = await horde('/models');
   const ids = Array.isArray(data?.data) ? data.data.map(model => model?.id).filter(Boolean) : [];
-  const preferred = ids.filter(id => /coder|code|qwen|deepseek|mistral|llama|glm|hermes|command|starcoder/i.test(id));
+  const preferred = ids.filter(id => /coder|code|qwen|deepseek|mistral|llama|glm|hermes|command|starcoder|7b|8b/i.test(id));
   const selected = [...new Set([...preferred, ...ids])].slice(0, MAX_MODELS);
   if (!selected.length) throw new Error('AI Horde exposed no text models through its OpenAI-compatible catalog');
   return selected;
@@ -76,7 +76,7 @@ async function discoverModels() {
 async function chat(model, messages) {
   const data = await horde('/chat/completions', {
     method: 'POST',
-    body: JSON.stringify({ model, messages, temperature: 0.1, max_tokens: 3500 }),
+    body: JSON.stringify({ model, messages, temperature: 0.1, max_tokens: 2200 }),
   });
   const text = data?.choices?.[0]?.message?.content;
   if (!text) throw new Error(`model ${model} returned an empty completion`);
@@ -87,7 +87,7 @@ function runSpec(workRoot) {
   const run = spawnSync(process.execPath, [path.join(workRoot, 'test', 'spec.mjs')], {
     cwd: workRoot,
     encoding: 'utf8',
-    timeout: 15000,
+    timeout: 10000,
     maxBuffer: 1024 * 1024,
   });
   return {
@@ -100,7 +100,7 @@ function runSpec(workRoot) {
 }
 
 async function solveWithModel(model, task) {
-  const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'veytrix-quick-ai-'));
+  const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'veytrix-basic-ai-'));
   fs.mkdirSync(path.join(workRoot, 'src'), { recursive: true });
   fs.mkdirSync(path.join(workRoot, 'test'), { recursive: true });
   fs.copyFileSync(SOURCE, path.join(workRoot, 'src', 'scheduler.mjs'));
@@ -117,31 +117,31 @@ async function solveWithModel(model, task) {
       const response = await chat(model, [
         {
           role: 'system',
-          content: 'You are a practical senior software engineer. Solve the small coding task directly. Do not modify tests. Return a complete replacement for the requested source file.',
+          content: 'You are a practical senior software engineer. Solve the small coding task directly. Do not modify tests or add dependencies. Return a complete replacement for the requested source file.',
         },
         { role: 'user', content: prompt },
       ]);
       const candidate = extractFile(response);
       fs.writeFileSync(path.join(workRoot, 'src', 'scheduler.mjs'), `${candidate}\n`);
       const result = runSpec(workRoot);
-      attempts.push({ round, ok: result.ok, status: result.status, stdout: result.stdout.slice(0, 1200), stderr: result.stderr.slice(0, 2200) });
+      attempts.push({ round, ok: result.ok, status: result.status, stdout: result.stdout.slice(0, 1500), stderr: result.stderr.slice(0, 2500) });
       if (result.ok) return { ok: true, model, attempts };
       current = candidate;
-      feedback = `REPAIR FEEDBACK: The unmodified tests failed. Fix the implementation and return the complete file again. stdout=${result.stdout.slice(0, 1200)} stderr=${result.stderr.slice(0, 2500)}`;
+      feedback = `REPAIR FEEDBACK: The unmodified tests failed. Fix the implementation and return the complete file again. stdout=${result.stdout.slice(0, 1500)} stderr=${result.stderr.slice(0, 2800)}`;
     } catch (error) {
       attempts.push({ round, ok: false, error: String(error?.message ?? error).slice(0, 2200) });
-      feedback = `HARNESS FEEDBACK: ${String(error?.message ?? error).slice(0, 2500)}. Return the complete file in the required wrapper.`;
+      feedback = `HARNESS FEEDBACK: ${String(error?.message ?? error).slice(0, 2500)}. Return the complete file in the required wrapper and do not add dependencies.`;
     }
   }
 
   return { ok: false, model, attempts };
 }
 
-const task = `QUICK CODING BENCHMARK. Repair ONLY hardcore-ai-test/src/scheduler.mjs so every unmodified test passes. Implement mergeHeaders(base, override) with these exact semantics: header names are ASCII case-insensitive; when override matches a base header, update the existing base key without changing its original casing; null or undefined override values remove an existing header; empty string is retained; new override headers are appended in override order using their supplied spelling; values are preserved exactly without stringification; neither input object may be mutated; return a new object. Keep the implementation small and clean. Do not modify tests.`;
+const task = `BASIC CODING BENCHMARK. Repair ONLY hardcore-ai-test/src/scheduler.mjs so every unmodified test passes. Implement parseKeyValuePairs(text) with these exact semantics: if text is not a string, return a fresh empty object; otherwise parse comma-separated segments; trim each segment; ignore empty segments; split each non-empty segment at the FIRST '=' only; trim the key and value; ignore segments whose trimmed key is empty; if '=' is missing, use an empty-string value; if a key appears more than once, the last value wins; preserve everything after the first '=' including additional '=' characters. Do not add dependencies, do not modify tests, and do not mutate any caller-owned input. Keep the implementation small and clean.`;
 
 const modelResults = [];
 const report = {
-  benchmark: 'VEYTRIX-QUICK-2-MIN-AI-CODING-PROOF',
+  benchmark: 'VEYTRIX-BASIC-DEPENDENCY-FREE-AI-CODING-PROOF',
   generatedAt: new Date().toISOString(),
   transport: 'AI Horde OpenAI-compatible proxy',
   anonymousLane: true,
@@ -161,7 +161,7 @@ try {
       modelResults.push(result);
       console.log(JSON.stringify(result));
       if (!result.ok) {
-        const error = new Error(`model ${modelId} failed the quick coding benchmark`);
+        const error = new Error(`model ${modelId} failed the basic coding benchmark`);
         error.retryable = true;
         throw error;
       }
@@ -181,5 +181,5 @@ try {
 }
 
 fs.writeFileSync(REPORT_PATH, `${JSON.stringify(report, null, 2)}\n`);
-console.log(`QUICK_AI_PROOF=${report.success ? 'PASS' : 'FAIL'}`);
+console.log(`BASIC_AI_PROOF=${report.success ? 'PASS' : 'FAIL'}`);
 if (!report.success) process.exit(1);
