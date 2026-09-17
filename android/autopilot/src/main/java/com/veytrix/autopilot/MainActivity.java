@@ -426,7 +426,7 @@ public final class MainActivity extends Activity {
         private void drawRecentItem(Canvas c, float x, float y, String title, String sub, String time, String status, int icon) {
             roundGlowHome(c, x, y, 368, y + 43, Color.rgb(6, 24, 42), Color.argb(120, 73, 118, 187), 14, Color.TRANSPARENT);
             int accent = icon == 0 ? Color.rgb(34, 209, 161) : icon == 1 ? Color.rgb(47, 118, 255) : HOME_PURPLE;
-            p.setColor(Color.argb(95, Color.red(accent), Color.green(accent), Color.blue(accent))); p.setShadowLayer(HX(10),0,0,Color.argb(100,accent)); c.drawRoundRect(new RectF(HX(x + 8), HY(y + 8), HX(x + 38), HY(y + 36)), HX(8), HX(8), p); p.clearShadowLayer();
+            p.setColor(Color.argb(95, Color.red(accent), Color.green(accent), Color.blue(accent))); p.setShadowLayer(HX(10),0,0,Color.argb(100, Color.red(accent), Color.green(accent), Color.blue(accent))); c.drawRoundRect(new RectF(HX(x + 8), HY(y + 8), HX(x + 38), HY(y + 36)), HX(8), HX(8), p); p.clearShadowLayer();
             p.setColor(accent); c.drawRoundRect(new RectF(HX(x + 8), HY(y + 8), HX(x + 38), HY(y + 36)), HX(8), HX(8), p);
             if (icon == 0) drawCodeIcon(c, x + 23, y + 22); else if (icon == 1) drawDocIcon(c, x + 23, y + 22); else drawGearIcon(c, x + 23, y + 22);
             textHome(c, title, 7.8f, HOME_TEXT, x + 48, y + 17, false, true);
