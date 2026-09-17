@@ -1,0 +1,48 @@
+name: Veytrix Real 3M Model Proof
+
+on:
+  push:
+    branches:
+      - 'test/free-ai-mesh-canary'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-model-proof:
+    name: Real Hugging Face 3M+ model discovery and provider proof
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install Hugging Face client
+        run: python -m pip install --upgrade huggingface_hub
+
+      - name: Run exhaustive real model discovery and proof
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/real_3m_model_proof.py
+
+      - name: Print proof summary
+        run: cat real-3m-model-proof.txt
+
+      - name: Upload machine-verifiable proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: veytrix-real-3m-model-proof
+          path: |
+            real-3m-model-proof.txt
+            real-3m-model-proof.json
+          if-no-files-found: error
+          retention-days: 30
