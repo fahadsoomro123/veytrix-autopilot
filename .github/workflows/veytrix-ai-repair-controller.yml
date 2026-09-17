@@ -77,8 +77,10 @@ jobs:
           bash .veytrix-core/scripts/failure_fingerprint.sh /tmp/veytrix-failure.log "$FAILED_WORKFLOW" "$HEAD_SHA" | tee /tmp/veytrix-fingerprint.txt
           classification="$(awk -F= '$1=="classification"{print $2}' /tmp/veytrix-fingerprint.txt)"
           fingerprint="$(awk -F= '$1=="fingerprint"{print $2}' /tmp/veytrix-fingerprint.txt)"
+          reason="$(bash .veytrix-core/scripts/classify_failure.sh /tmp/veytrix-failure.log | awk -F= '$1=="reason"{print $2}')"
           echo "classification=$classification" >> "$GITHUB_OUTPUT"
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
 
       - name: Block credential and security failures
         id: blocker
@@ -215,6 +217,7 @@ jobs:
             echo "- Run: $RUN_ID"
             echo "- Failed SHA: $HEAD_SHA"
             echo "- Classification: ${{ steps.fingerprint.outputs.classification }}"
+            echo "- Reason: ${{ steps.fingerprint.outputs.reason }}"
             echo "- Fingerprint: ${{ steps.fingerprint.outputs.fingerprint }}"
             if [ '${{ steps.blocker.outputs.blocked }}' = 'true' ]; then
               echo '- Result: blocked by credential/security/external configuration evidence.'
