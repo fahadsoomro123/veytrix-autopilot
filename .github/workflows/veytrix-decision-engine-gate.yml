@@ -1,0 +1,60 @@
+name: Veytrix Decision Engine Gate
+
+on:
+  push:
+    branches:
+      - implementation/preview-to-android-pass-2
+    paths:
+      - 'scripts/decide_engine.sh'
+      - 'scripts/test_decide_engine.sh'
+      - '.github/workflows/veytrix-decision-engine-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  decision-engine-self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run deterministic-first decision tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/test_decide_engine.sh
+
+      - name: Validate workflow structure
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -ryaml -e '
+            data = YAML.safe_load(File.read(".github/workflows/veytrix-decision-engine-gate.yml"), aliases: true)
+            abort("workflow root is not a mapping") unless data.is_a?(Hash)
+            abort("jobs mapping missing") unless data["jobs"].is_a?(Hash)
+            abort("decision-engine-self-test job missing") unless data["jobs"].key?("decision-engine-self-test")
+            puts "validated=veytrix-decision-engine-gate.yml"
+          '
+
+      - name: Record decision evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Veytrix Decision Engine Gate'
+            echo ''
+            echo '| Signal | Expected behavior |'
+            echo '|---|---|'
+            echo '| verification-only + deterministic pass | github-free |'
+            echo '| arbitrary mission + AI available | ai |'
+            echo '| deterministic failure + AI available | ai |'
+            echo '| AI unavailable | deterministic-only fallback |'
+            echo '| explicit AI without key | hard failure |'
+            echo ''
+            echo 'Decision tests and workflow validation passed without invoking an AI provider.'
+          } >> "$GITHUB_STEP_SUMMARY"
