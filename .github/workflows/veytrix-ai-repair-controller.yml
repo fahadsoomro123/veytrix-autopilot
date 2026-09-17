@@ -9,6 +9,7 @@ on:
       - Veytrix Free Gemini AI Gate
       - Veytrix Smart Autopilot Self-Test
       - Veytrix Smart Autopilot
+      - Veytrix Control Plane Self-Test
     types: [completed]
 
 permissions:
@@ -21,7 +22,7 @@ concurrency:
 
 env:
   MAX_AUTOPILOT_REPAIRS: '3'
-  MAX_TRANSIENT_RERUNS: '2'
+  MAX_TRANSIENT_ATTEMPTS: '2'
 
 jobs:
   recover:
@@ -58,21 +59,8 @@ jobs:
           test -s /tmp/veytrix-run.json
           test -s /tmp/veytrix-failure.log
 
-      - name: Block credential and security failures
-        id: blocker
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -Eqi '(VEYTRIX_KEYSTORE_BASE64|VEYTRIX_KEYSTORE_PASSWORD|VEYTRIX_KEY_ALIAS|VEYTRIX_KEY_PASSWORD|OPENAI_API_KEY).*(:|=)[[:space:]]*$|secret.*not set|secret.*missing|permission denied.*secret|authentication.*failed' /tmp/veytrix-failure.log; then
-            echo 'blocked=true' >> "$GITHUB_OUTPUT"
-            echo 'Security/credential blocker detected. No credential fabrication or weakening is permitted.'
-          else
-            echo 'blocked=false' >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Classify and fingerprint failure
         id: fingerprint
-        if: steps.blocker.outputs.blocked != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -82,14 +70,27 @@ jobs:
           echo "classification=$classification" >> "$GITHUB_OUTPUT"
           echo "fingerprint=$fingerprint" >> "$GITHUB_OUTPUT"
 
+      - name: Block credential and security failures
+        id: blocker
+        if: steps.fingerprint.outputs.classification != 'transient'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eqi '(VEYTRIX_KEYSTORE_BASE64|VEYTRIX_KEYSTORE_PASSWORD|VEYTRIX_KEY_ALIAS|VEYTRIX_KEY_PASSWORD|OPENAI_API_KEY).*(:|=)[[:space:]]*$|secret.*not set|secret.*missing|permission denied.*secret|authentication.*failed|unauthorized|forbidden' /tmp/veytrix-failure.log; then
+            echo 'blocked=true' >> "$GITHUB_OUTPUT"
+            echo 'Security/credential blocker detected. No credential fabrication or weakening is permitted.'
+          else
+            echo 'blocked=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Deterministic transient recovery
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification == 'transient'
         shell: bash
         run: |
           set -euo pipefail
           attempt="$(jq -r '.runAttempt' /tmp/veytrix-run.json)"
-          if (( attempt >= MAX_TRANSIENT_RERUNS )); then
-            echo "Transient rerun ceiling reached for run $RUN_ID."
+          if (( attempt >= MAX_TRANSIENT_ATTEMPTS )); then
+            echo "Transient attempt ceiling reached for run $RUN_ID (attempt $attempt)."
             exit 1
           fi
           echo "Recognized transient failure; rerunning failed jobs only."
@@ -163,8 +164,12 @@ jobs:
             echo 'AI produced no source change; refusing blind rerun.'
             exit 1
           fi
-          if [ -x scripts/deterministic_verify.sh ]; then
-            bash scripts/deterministic_verify.sh .
+          if [ -f scripts/deterministic_verify.sh ]; then
+            bash scripts/deterministic_verify.sh . || {
+              rc=$?
+              if [[ $rc -ne 20 ]]; then exit $rc; fi
+              echo 'No generic deterministic verifier matched this project; continuing with diff checks.'
+            }
           fi
 
       - name: Publish verified repair with stale-HEAD protection
