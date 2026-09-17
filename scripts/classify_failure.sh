@@ -16,7 +16,7 @@ if grep -Eqi 'VEYTRIX_KEYSTORE_(BASE64|PASSWORD)|VEYTRIX_KEY_ALIAS|VEYTRIX_KEY_P
 elif grep -Eqi '(secret|credential|token|keystore|signing key).*(missing|not set|not found|invalid|expired|denied)|permission denied|resource not accessible|authentication failed|unauthorized|forbidden' "$log_file"; then
   echo "classification=credential-or-permission"
   echo "reason=external-credential-or-permission-blocker"
-elif grep -Eqi '(billing|quota exceeded|payment required|insufficient quota|api key.*(invalid|revoked))' "$log_file"; then
+elif grep -Eqi '(billing|quota exceeded|payment required|insufficient quota|insufficient credits|no credits remaining|out of credits|credits remaining|api key.*(invalid|revoked))' "$log_file"; then
   echo "classification=external-service"
   echo "reason=external-service-or-quota-blocker"
 elif grep -Eqi '(rate limit|timed out|timeout|HTTP 503|HTTP 502|HTTP 504|\b503\b|\b502\b|\b504\b|connection reset|connection refused|temporary failure|network is unreachable|failed to download|could not resolve host|runner.*unavailable|service unavailable|no space left on device)' "$log_file"; then
