@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - test/free-ai-quick
+    paths:
+      - hardcore-ai-test/TRIGGER-*
 
 permissions:
   contents: read
@@ -29,8 +31,8 @@ jobs:
       - name: Run real AI quick coding benchmark
         working-directory: hardcore-ai-test
         env:
-          QUICK_MAX_MODELS: 6
-          QUICK_MODEL_TIMEOUT_MS: 60000
+          QUICK_MAX_MODELS: 4
+          QUICK_MODEL_TIMEOUT_MS: 45000
         run: node run-agent.mjs
 
       - name: Print machine-verifiable result
