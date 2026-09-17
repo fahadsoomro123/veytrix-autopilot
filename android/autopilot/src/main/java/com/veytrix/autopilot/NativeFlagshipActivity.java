@@ -1,1 +1,0 @@
-package com.veytrix.autopilot; public final class NativeFlagshipActivity {}
