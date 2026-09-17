@@ -1,0 +1,122 @@
+name: VEYTRIX OTA Release APK
+
+on:
+  push:
+    branches:
+      - implementation/preview-wired-android
+    paths:
+      - 'android/**'
+      - 'scripts/**'
+      - '.github/workflows/veytrix-ota-release.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  ota-release:
+    name: Build signed OTA APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify native Android contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_android_contract.sh .
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+
+      - name: Verify release signing inputs
+        env:
+          VEYTRIX_KEYSTORE_BASE64: ${{ secrets.VEYTRIX_KEYSTORE_BASE64 }}
+          VEYTRIX_KEYSTORE_PASSWORD: ${{ secrets.VEYTRIX_KEYSTORE_PASSWORD }}
+          VEYTRIX_KEY_ALIAS: ${{ secrets.VEYTRIX_KEY_ALIAS }}
+          VEYTRIX_KEY_PASSWORD: ${{ secrets.VEYTRIX_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VEYTRIX_KEYSTORE_BASE64:-}" ]] || missing+=(VEYTRIX_KEYSTORE_BASE64)
+          [[ -n "${VEYTRIX_KEYSTORE_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEYSTORE_PASSWORD)
+          [[ -n "${VEYTRIX_KEY_ALIAS:-}" ]] || missing+=(VEYTRIX_KEY_ALIAS)
+          [[ -n "${VEYTRIX_KEY_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEY_PASSWORD)
+          if ((${#missing[@]})); then
+            printf '::error title=OTA signing blocker::Missing repository Actions secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Run Gradle checks
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :autopilot:check
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          VEYTRIX_KEYSTORE_BASE64: ${{ secrets.VEYTRIX_KEYSTORE_BASE64 }}
+          VEYTRIX_KEYSTORE_PASSWORD: ${{ secrets.VEYTRIX_KEYSTORE_PASSWORD }}
+          VEYTRIX_KEY_ALIAS: ${{ secrets.VEYTRIX_KEY_ALIAS }}
+          VEYTRIX_KEY_PASSWORD: ${{ secrets.VEYTRIX_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :autopilot:assembleRelease
+
+      - name: Verify OTA APK identity
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk='autopilot/build/outputs/apk/release/autopilot-release.apk'
+          test -s "$apk"
+          sha256sum "$apk" | tee autopilot/build/outputs/apk/release/autopilot-release.apk.sha256
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$apk" > /tmp/veytrix-release-badging.txt
+          grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-release-badging.txt
+          grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-release-badging.txt
+          if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
+            echo 'Legacy WebView preview asset is still packaged.' >&2
+            exit 1
+          fi
+
+      - name: Upload signed OTA APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: VEYTRIX-OTA-APK-v1.0.1
+          path: |
+            android/autopilot/build/outputs/apk/release/autopilot-release.apk
+            android/autopilot/build/outputs/apk/release/autopilot-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record OTA release result
+        shell: bash
+        run: |
+          {
+            echo '### VEYTRIX OTA Release'
+            echo '- Native Android contract: passed'
+            echo '- Gradle checks: passed'
+            echo '- Signed release APK: built'
+            echo '- Version: 1.0.1 (10001)'
+            echo '- Package: com.veytrix.autopilot'
+            echo '- OTA artifact: uploaded'
+            echo '- OTA compatibility requires the same signing key as the installed release APK'
+          } >> "$GITHUB_STEP_SUMMARY"
