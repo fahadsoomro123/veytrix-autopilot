@@ -37,6 +37,7 @@ public final class FlagshipCoreView extends View {
     private RadialGradient sphereShader;
     private RadialGradient sphereCoreShader;
     private LinearGradient markShader;
+    private DashPathEffect orbitDash;
     private float density;
     private float coreRadius;
     private long animationStartNanos;
@@ -50,6 +51,7 @@ public final class FlagshipCoreView extends View {
         stroke.setStrokeCap(Paint.Cap.ROUND);
         stroke.setStrokeJoin(Paint.Join.ROUND);
         glow.setStyle(Paint.Style.FILL);
+        orbitDash = new DashPathEffect(new float[]{dp(6), dp(11)}, 0f);
 
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         setClickable(false);
@@ -187,9 +189,6 @@ public final class FlagshipCoreView extends View {
         drawParticles(canvas, cx, cy, orbital, t);
         drawPedestal(canvas, cx, h * .745f, orbital * .78f, t);
 
-        // The cached sphere gradients and identity mark are built against the
-        // stable base center. Translate the canvas so animation drift moves
-        // the complete object together without breaking registration.
         canvas.save();
         canvas.translate(0f, drift);
         drawSphere(canvas, cx, baseCy, radius, t);
@@ -246,7 +245,7 @@ public final class FlagshipCoreView extends View {
         c.drawArc(ringTilt, 202f, 80f, false, stroke);
         c.restore();
 
-        stroke.setPathEffect(new DashPathEffect(new float[]{dp(6), dp(11)}, dp(5) * t));
+        stroke.setPathEffect(orbitDash);
         stroke.setStrokeWidth(dp(.72f));
         stroke.setColor(Color.argb(112, 126, 101, 255));
         c.save();
