@@ -51,7 +51,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json databaseId,name,headSha,headBranch,runAttempt,status,conclusion,event,createdAt,updatedAt > /tmp/veytrix-run.json
+          gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json databaseId,name,headSha,headBranch,attempt,status,conclusion,event,createdAt,updatedAt > /tmp/veytrix-run.json
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --json jobs > /tmp/veytrix-jobs.json
           gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --log-failed > /tmp/veytrix-raw.log || true
           bash scripts/sanitize_failure_log.sh /tmp/veytrix-raw.log /tmp/veytrix-failure.log
@@ -88,7 +88,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          attempt="$(jq -r '.runAttempt' /tmp/veytrix-run.json)"
+          attempt="$(jq -r '.attempt' /tmp/veytrix-run.json)"
           if (( attempt >= MAX_TRANSIENT_ATTEMPTS )); then
             echo "Transient attempt ceiling reached for run $RUN_ID (attempt $attempt)."
             exit 1
