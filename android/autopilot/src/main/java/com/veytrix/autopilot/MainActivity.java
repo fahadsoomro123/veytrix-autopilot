@@ -13,6 +13,7 @@ import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.text.InputType;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
 import android.view.View;
@@ -26,32 +27,31 @@ import android.widget.Toast;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsControllerCompat;
 
-/** Native VEYTRIX flagship Android surface. */
+/** Complete native VEYTRIX Android surface. */
 public final class MainActivity extends Activity {
-    private static final int BG = Color.rgb(2, 8, 17);
-    private static final int HOME_PANEL = Color.rgb(7, 22, 39);
-    private static final int HOME_PANEL_2 = Color.rgb(8, 27, 47);
-    private static final int HOME_BLUE = Color.rgb(90, 156, 255);
-    private static final int HOME_CYAN = Color.rgb(74, 220, 255);
-    private static final int HOME_PURPLE = Color.rgb(151, 91, 255);
-    private static final int HOME_TEXT = Color.rgb(243, 247, 255);
-    private static final int HOME_MUTED = Color.rgb(166, 191, 222);
-    private static final int HOME_GREEN = Color.rgb(39, 229, 176);
-    private static final int HOME_BORDER = Color.rgb(72, 121, 196);
+    private static final int BG = Color.rgb(3, 9, 18);
+    private static final int SURFACE = Color.rgb(7, 18, 32);
+    private static final int SURFACE_2 = Color.rgb(9, 24, 41);
+    private static final int SURFACE_3 = Color.rgb(11, 29, 48);
+    private static final int BLUE = Color.rgb(89, 154, 255);
+    private static final int CYAN = Color.rgb(72, 216, 248);
+    private static final int VIOLET = Color.rgb(151, 100, 255);
+    private static final int TEXT = Color.rgb(243, 247, 255);
+    private static final int MUTED = Color.rgb(156, 180, 210);
+    private static final int SUBTLE = Color.rgb(106, 131, 160);
+    private static final int GREEN = Color.rgb(43, 220, 171);
+    private static final int AMBER = Color.rgb(236, 192, 103);
+    private static final int RED = Color.rgb(244, 108, 127);
+    private static final int BORDER = Color.rgb(46, 80, 120);
 
     private FrameLayout root;
     private VeytrixView surface;
     private FlagshipCoreView coreView;
     private EditText prompt;
-    private TextView contextAction;
-    private TextView mic;
-    private TextView attachAction;
-    private TextView send;
-    private TextView modeAction;
+    private TextView contextAction, mic, attachAction, send, modeAction;
     private boolean deepMode = true;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         configureWindow();
         build();
@@ -71,17 +71,17 @@ public final class MainActivity extends Activity {
     private void build() {
         root = new FrameLayout(this);
         surface = new VeytrixView(this);
-        surface.setContentDescription("VEYTRIX Home screen");
+        surface.setContentDescription("VEYTRIX application");
         root.addView(surface, new FrameLayout.LayoutParams(-1, -1));
 
         coreView = new FlagshipCoreView(this);
         coreView.setContentDescription("VEYTRIX autonomous core");
-        root.addView(coreView, new FrameLayout.LayoutParams(dp(140), dp(148)));
+        coreView.setAlpha(0.78f);
+        root.addView(coreView, new FrameLayout.LayoutParams(1, 1));
 
         prompt = new EditText(this);
-        prompt.setTextColor(HOME_TEXT);
-        prompt.setHintTextColor(Color.rgb(153, 177, 209));
-        prompt.setTextSize(15f);
+        prompt.setTextColor(TEXT);
+        prompt.setHintTextColor(Color.rgb(132, 159, 190));
         prompt.setHint("Describe your task in plain language...");
         prompt.setGravity(Gravity.TOP | Gravity.START);
         prompt.setSingleLine(false);
@@ -90,82 +90,60 @@ public final class MainActivity extends Activity {
         prompt.setVerticalScrollBarEnabled(false);
         prompt.setOverScrollMode(View.OVER_SCROLL_NEVER);
         prompt.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
-        prompt.setPadding(dp(14), dp(10), dp(10), dp(8));
         prompt.setBackgroundColor(Color.TRANSPARENT);
-        root.addView(prompt, new FrameLayout.LayoutParams(dp(332), dp(58)));
+        root.addView(prompt, new FrameLayout.LayoutParams(1, 1));
 
-        contextAction = transparentAction("Context options");
-        contextAction.setOnClickListener(v -> Toast.makeText(this, "Context tools are not connected in this build", Toast.LENGTH_SHORT).show());
-        root.addView(contextAction, new FrameLayout.LayoutParams(dp(76), dp(40)));
-
-        mic = transparentAction("Voice input");
-        mic.setOnClickListener(v -> Toast.makeText(this, "Voice input is not connected in this build", Toast.LENGTH_SHORT).show());
-        root.addView(mic, new FrameLayout.LayoutParams(dp(76), dp(40)));
-
-        attachAction = transparentAction("Attach files");
-        attachAction.setOnClickListener(v -> Toast.makeText(this, "Attachments are not connected in this build", Toast.LENGTH_SHORT).show());
-        root.addView(attachAction, new FrameLayout.LayoutParams(dp(76), dp(40)));
-
-        send = transparentAction("Launch mission");
+        contextAction = action("Context options");
+        contextAction.setOnClickListener(v -> toast("Context tools are not connected in this build"));
+        root.addView(contextAction, new FrameLayout.LayoutParams(1, 1));
+        mic = action("Voice input");
+        mic.setOnClickListener(v -> toast("Voice input is not connected in this build"));
+        root.addView(mic, new FrameLayout.LayoutParams(1, 1));
+        attachAction = action("Attach files");
+        attachAction.setOnClickListener(v -> toast("Attachments are not connected in this build"));
+        root.addView(attachAction, new FrameLayout.LayoutParams(1, 1));
+        send = action("Launch mission");
         send.setOnClickListener(v -> startMission());
-        root.addView(send, new FrameLayout.LayoutParams(dp(86), dp(40)));
-
-        modeAction = transparentAction("Mission mode");
-        modeAction.setOnClickListener(v -> {
-            deepMode = !deepMode;
-            surface.invalidate();
-        });
-        root.addView(modeAction, new FrameLayout.LayoutParams(dp(82), dp(34)));
+        root.addView(send, new FrameLayout.LayoutParams(1, 1));
+        modeAction = action("Mission mode");
+        modeAction.setOnClickListener(v -> { deepMode = !deepMode; surface.invalidate(); });
+        root.addView(modeAction, new FrameLayout.LayoutParams(1, 1));
 
         setContentView(root);
         root.post(this::positionHomeControls);
     }
 
-    private TextView transparentAction(String description) {
-        TextView view = new TextView(this);
-        view.setText("");
-        view.setTextColor(Color.TRANSPARENT);
-        view.setBackgroundColor(Color.TRANSPARENT);
-        view.setContentDescription(description);
-        view.setGravity(Gravity.CENTER);
-        return view;
+    private TextView action(String description) {
+        TextView v = new TextView(this);
+        v.setText("");
+        v.setTextColor(Color.TRANSPARENT);
+        v.setBackgroundColor(Color.TRANSPARENT);
+        v.setContentDescription(description);
+        return v;
     }
 
-    private int dp(int value) {
-        return Math.round(value * getResources().getDisplayMetrics().density);
-    }
-
-    private float homeScale() {
-        if (surface == null || surface.getWidth() <= 0 || surface.getHeight() <= 0) return 1f;
-        float density = getResources().getDisplayMetrics().density;
-        float widthDp = surface.getWidth() / density;
-        float heightDp = surface.getHeight() / density;
-        return Math.min(widthDp / 390f, heightDp / 844f);
-    }
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
 
     private void positionHomeControls() {
         if (surface == null || surface.getWidth() <= 0 || surface.getHeight() <= 0) return;
-        float density = getResources().getDisplayMetrics().density;
-        float scale = homeScale();
-        float contentWidthPx = 390f * scale * density;
-        int xOffset = Math.round((surface.getWidth() - contentWidthPx) * .5f);
-
-        place(coreView, xOffset + Math.round(205f * scale * density), Math.round(103f * scale * density), Math.round(140f * scale * density), Math.round(148f * scale * density));
-        place(prompt, xOffset + Math.round(29f * scale * density), Math.round(317f * scale * density), Math.round(332f * scale * density), Math.round(58f * scale * density));
-        place(modeAction, xOffset + Math.round(289f * scale * density), Math.round(273f * scale * density), Math.round(82f * scale * density), Math.round(34f * scale * density));
-        place(contextAction, xOffset + Math.round(26f * scale * density), Math.round(374f * scale * density), Math.round(76f * scale * density), Math.round(40f * scale * density));
-        place(mic, xOffset + Math.round(108f * scale * density), Math.round(374f * scale * density), Math.round(76f * scale * density), Math.round(40f * scale * density));
-        place(attachAction, xOffset + Math.round(192f * scale * density), Math.round(374f * scale * density), Math.round(76f * scale * density), Math.round(40f * scale * density));
-        place(send, xOffset + Math.round(276f * scale * density), Math.round(374f * scale * density), Math.round(86f * scale * density), Math.round(40f * scale * density));
+        float s = scale();
+        int ox = Math.round((surface.getWidth() - 390f * s) * .5f);
+        place(coreView, ox + round(244 * s), round(93 * s), round(122 * s), round(136 * s));
+        place(prompt, ox + round(27 * s), round(310 * s), round(338 * s), round(56 * s));
+        place(modeAction, ox + round(286 * s), round(269 * s), round(80 * s), round(34 * s));
+        place(contextAction, ox + round(26 * s), round(369 * s), round(76 * s), round(40 * s));
+        place(mic, ox + round(108 * s), round(369 * s), round(76 * s), round(40 * s));
+        place(attachAction, ox + round(190 * s), round(369 * s), round(76 * s), round(40 * s));
+        place(send, ox + round(271 * s), round(369 * s), round(94 * s), round(40 * s));
+        prompt.setTextSize(TypedValue.COMPLEX_UNIT_PX, 14f * s);
+        prompt.setPadding(round(12 * s), round(9 * s), round(10 * s), round(6 * s));
     }
 
-    private void place(View view, int left, int top, int width, int height) {
-        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) view.getLayoutParams();
-        lp.width = width;
-        lp.height = height;
-        lp.leftMargin = left;
-        lp.topMargin = top;
-        view.setLayoutParams(lp);
+    private int round(float n) { return Math.round(n); }
+
+    private void place(View v, int l, int t, int w, int h) {
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) v.getLayoutParams();
+        lp.width = w; lp.height = h; lp.leftMargin = l; lp.topMargin = t; v.setLayoutParams(lp);
     }
 
     private void startMission() {
@@ -173,48 +151,44 @@ public final class MainActivity extends Activity {
         if (value.isEmpty()) {
             prompt.requestFocus();
             ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(prompt, InputMethodManager.SHOW_IMPLICIT);
-            Toast.makeText(this, "Write a mission first", Toast.LENGTH_SHORT).show();
+            toast("Write a mission first");
             return;
         }
         surface.mission = value;
         surface.page = VeytrixView.RUNS;
-        prompt.clearFocus();
         hideComposer();
-        surface.invalidate();
+        prompt.clearFocus();
         ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(prompt.getWindowToken(), 0);
+        surface.invalidate();
     }
 
     private void showComposer() {
-        prompt.setVisibility(View.VISIBLE);
-        contextAction.setVisibility(View.VISIBLE);
-        mic.setVisibility(View.VISIBLE);
-        attachAction.setVisibility(View.VISIBLE);
-        send.setVisibility(View.VISIBLE);
-        modeAction.setVisibility(View.VISIBLE);
-        coreView.setVisibility(View.VISIBLE);
-        positionHomeControls();
+        prompt.setVisibility(View.VISIBLE); contextAction.setVisibility(View.VISIBLE); mic.setVisibility(View.VISIBLE);
+        attachAction.setVisibility(View.VISIBLE); send.setVisibility(View.VISIBLE); modeAction.setVisibility(View.VISIBLE);
+        coreView.setVisibility(View.VISIBLE); positionHomeControls();
     }
 
     private void hideComposer() {
-        prompt.setVisibility(View.GONE);
-        contextAction.setVisibility(View.GONE);
-        mic.setVisibility(View.GONE);
-        attachAction.setVisibility(View.GONE);
-        send.setVisibility(View.GONE);
-        modeAction.setVisibility(View.GONE);
+        prompt.setVisibility(View.GONE); contextAction.setVisibility(View.GONE); mic.setVisibility(View.GONE);
+        attachAction.setVisibility(View.GONE); send.setVisibility(View.GONE); modeAction.setVisibility(View.GONE);
         coreView.setVisibility(View.GONE);
     }
+
+    private float scale() { return Math.min(surface.getWidth() / 390f, surface.getHeight() / 844f); }
+    private void toast(String text) { Toast.makeText(this, text, Toast.LENGTH_SHORT).show(); }
 
     private final class VeytrixView extends View {
         static final int HOME = 0, RUNS = 1, DETAILS = 2, ARTIFACTS = 3, TOOLS = 4, PROFILE = 5, SETTINGS = 6, VOICE = 7, COMPLETED = 8;
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
         private int page = HOME;
-        private boolean drawer = false;
+        private boolean drawerOpen = false;
+        private float drawerProgress = 0f, drawerTarget = 0f;
         private boolean paused = false;
-        private float pulse = 0f;
-        private long animationStartNanos;
+        private boolean localNotifications = true;
+        private boolean localReducedMotion = false;
         private String mission = "";
+        private long startedAt = System.currentTimeMillis();
 
         VeytrixView(Context context) {
             super(context);
@@ -222,34 +196,19 @@ public final class MainActivity extends Activity {
             stroke.setStrokeCap(Paint.Cap.ROUND);
             stroke.setStrokeJoin(Paint.Join.ROUND);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-            animationStartNanos = System.nanoTime();
         }
 
-        private float hs() { return Math.min(getWidth() / 390f, getHeight() / 844f); }
-        private float HX(float n) { return (getWidth() - 390f * hs()) * .5f + n * hs(); }
-        private float HY(float n) { return n * hs(); }
+        private float X(float v) { return (getWidth() - 390f * scale()) * .5f + v * scale(); }
+        private float Y(float v) { return v * scale(); }
 
-        @Override protected void onAttachedToWindow() {
-            super.onAttachedToWindow();
-            animationStartNanos = System.nanoTime();
-            postInvalidateOnAnimation();
-        }
+        @Override protected void onAttachedToWindow() { super.onAttachedToWindow(); postInvalidateOnAnimation(); }
+        @Override protected void onDetachedFromWindow() { removeCallbacks(frame); super.onDetachedFromWindow(); }
+        private final Runnable frame = this::invalidate;
 
-        @Override protected void onDetachedFromWindow() {
-            removeCallbacks(invalidateRunnable);
-            super.onDetachedFromWindow();
-        }
-
-        private final Runnable invalidateRunnable = this::invalidate;
-
-        @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            super.onSizeChanged(w, h, oldw, oldh);
-            post(MainActivity.this::positionHomeControls);
-        }
+        @Override protected void onSizeChanged(int w, int h, int ow, int oh) { super.onSizeChanged(w, h, ow, oh); post(MainActivity.this::positionHomeControls); }
 
         @Override protected void onDraw(Canvas c) {
-            pulse = (System.nanoTime() - animationStartNanos) / 1_000_000_000f;
-            c.drawColor(BG);
+            drawBackground(c);
             switch (page) {
                 case HOME: drawHome(c); break;
                 case RUNS: drawRuns(c); break;
@@ -262,126 +221,219 @@ public final class MainActivity extends Activity {
                 default: drawCompleted(c); break;
             }
             drawBottomNav(c);
-            if (drawer) drawDrawer(c);
-            if (getVisibility() == View.VISIBLE) postInvalidateOnAnimation();
+            animateDrawer(c);
+        }
+
+        private void animateDrawer(Canvas c) {
+            drawerProgress += (drawerTarget - drawerProgress) * 0.22f;
+            if (Math.abs(drawerTarget - drawerProgress) > .01f) postInvalidateOnAnimation();
+            if (drawerProgress > .001f) drawDrawer(c, drawerProgress);
+        }
+
+        private void drawBackground(Canvas c) {
+            p.setShader(new LinearGradient(0, 0, 0, getHeight(), new int[]{Color.rgb(3,9,18), Color.rgb(4,15,28), Color.rgb(2,8,16)}, null, Shader.TileMode.CLAMP));
+            c.drawRect(0, 0, getWidth(), getHeight(), p); p.setShader(null);
+            p.setShader(new RadialGradient(X(320), Y(120), X(170), new int[]{Color.argb(34,73,133,255), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP));
+            c.drawCircle(X(320), Y(120), X(170), p); p.setShader(null);
+            p.setShader(new RadialGradient(X(68), Y(670), X(150), new int[]{Color.argb(18,151,100,255), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP));
+            c.drawCircle(X(68), Y(670), X(150), p); p.setShader(null);
         }
 
         private void drawHome(Canvas c) {
-            drawHomeBackground(c); drawHomeHeader(c); drawHomeHero(c); drawHomeComposer(c); drawHomeFeatures(c); drawHomeMetrics(c); drawHomeRecent(c);
+            round(c,16,16,374,76,SURFACE,BORDER,18); icon(c,38,46,IC_MENU,MUTED);
+            drawLogo(c,145,42); txt(c,"VEYTRIX",21,TEXT,205,46,true,true); txt(c,"AUTONOMOUS AI DEVELOPMENT",7.2f,MUTED,205,62,true,false);
+            round(c,309,28,343,62,SURFACE_2,BORDER,17); icon(c,326,45,IC_BELL,TEXT); dot(c,337,29,3,RED);
+            round(c,349,28,374,62,SURFACE_2,BORDER,17); txt(c,"FH",10.5f,TEXT,361.5f,50,true,true); dot(c,368,55,3.5f,GREEN);
+
+            txt(c,"Build",29,TEXT,24,115,false,true); txt(c,"Without",29,Color.rgb(196,180,255),24,145,false,true); txt(c,"Limits.",29,Color.rgb(211,235,255),24,175,false,true);
+            txt(c,"Turn an idea into a real mission with a clear, guided workflow.",8.2f,MUTED,24,198,false,false);
+            pill(c,24,215,143,246,"AI CORE  •  ONLINE",GREEN);
+            txt(c,"THINK",6.8f,SUBTLE,346,105,true,false); txt(c,"PLAN",6.8f,SUBTLE,346,119,true,false); txt(c,"EXECUTE",6.8f,SUBTLE,346,133,true,false); txt(c,"VERIFY",6.8f,SUBTLE,346,147,true,false);
+
+            round(c,16,258,374,416,SURFACE,BORDER,20); icon(c,35,282,IC_SPARK,VIOLET); txt(c,"MISSION / COMMAND",9.4f,TEXT,51,287,false,true);
+            pill(c,287,270,366,302,deepMode?"Deep Mode":"Quick Mode",VIOLET); icon(c,352,286,IC_CHEVRON,MUTED);
+            round(c,27,309,363,366,Color.rgb(4,13,25),Color.rgb(44,76,116),14);
+            composerLabel(c,39,390,"Context",IC_CONTEXT,TEXT); composerLabel(c,121,390,"Voice",IC_MIC,BLUE); composerLabel(c,205,390,"Attach",IC_ATTACH,TEXT);
+            gradientButton(c,271,369,365,409,"Launch",IC_PLAY);
+
+            sectionTitle(c,"Core capabilities",16,438); feature(c,16,456,"Smart Plan","Break down ideas",IC_PLAN,VIOLET); feature(c,108,456,"Multi-Agent","Execute with AI",IC_AGENT,BLUE); feature(c,200,456,"Auto Test","Verify securely",IC_CHECK,CYAN); feature(c,292,456,"Deploy","Ship to production",IC_DEPLOY,GREEN);
+            round(c,16,548,374,610,SURFACE_2,BORDER,18); metric(c,28,579,"128","Missions",IC_ACTIVITY); metric(c,119,579,"24","Projects",IC_FOLDER); metric(c,210,579,"98%","Success",IC_CHECK); metric(c,301,579,"2.4x","Faster",IC_CLOCK);
+            cLine(c,105,560,105,598,Color.rgb(43,73,104)); cLine(c,195,560,195,598,Color.rgb(43,73,104)); cLine(c,285,560,285,598,Color.rgb(43,73,104));
+
+            sectionTitle(c,"Recent activity",16,634); pill(c,313,620,366,646,"View all",BLUE);
+            activity(c,16,655,"Build authentication system","Completed successfully","2h ago",GREEN,IC_CODE);
+            activity(c,16,701,"Design modern UI components","24 components generated","5h ago",BLUE,IC_DOC);
+            activity(c,16,747,"Optimize database queries","Performance improved by 70%","1d ago",VIOLET,IC_GEAR);
         }
 
-        private void drawHomeBackground(Canvas c) {
-            p.setShader(new LinearGradient(0, 0, 0, getHeight(), new int[]{Color.rgb(2, 8, 18), Color.rgb(3, 13, 26), Color.rgb(2, 7, 17)}, null, Shader.TileMode.CLAMP));
-            c.drawRect(0, 0, getWidth(), getHeight(), p); p.setShader(null);
-            glowCircle(c, 275, 122, 142, Color.argb(34, 57, 117, 239));
-            glowCircle(c, 84, 360, 138, Color.argb(18, 147, 71, 255));
-            glowCircle(c, 310, 690, 190, Color.argb(14, 38, 155, 255));
-            stroke.setStrokeWidth(Math.max(.7f, hs())); stroke.setColor(Color.argb(12, 70, 129, 205));
-            for (int i = -2; i < 7; i++) c.drawLine(HX(i * 95f), HY(844), HX(i * 95f + 340f), HY(520), stroke);
+        private void drawRuns(Canvas c) {
+            topBar(c,"Activity",false); pill(c,18,84,86,113,"4 active",BLUE); pill(c,93,84,181,113,"12 completed",GREEN); pill(c,188,84,270,113,"1 failed",RED);
+            sectionTitle(c,"Current mission",18,145); round(c,18,160,372,254,SURFACE,BORDER,18);
+            icon(c,41,187,IC_RUN,BLUE); txt(c, mission.isEmpty()?"Create a research report on renewable energy trends":mission,12.4f,TEXT,61,186,false,true); pill(c,61,199,126,224,paused?"Paused":"Running",paused?AMBER:GREEN); txt(c,"Planning → Executing → Verifying",7.1f,MUTED,61,243,false,false); progress(c,61,230,341,BLUE, paused?.46f:.68f); icon(c,345,186,IC_CHEVRON,MUTED);
+            sectionTitle(c,"Recent runs",18,282);
+            runRow(c,18,295,"Build authentication system","Completed successfully","2h ago",GREEN,"98%",IC_CODE);
+            runRow(c,18,380,"Design modern UI components","Generated 24 components","5h ago",GREEN,"100%",IC_DOC);
+            runRow(c,18,465,"Optimize database queries","Performance improved by 70%","1d ago",BLUE,"91%",IC_GEAR);
+            runRow(c,18,550,"Security review","Needs attention","2d ago",RED,"42%",IC_SHIELD);
+            sectionTitle(c,"Run stages",18,660); stage(c,18,678,"Planning","Scope understood",GREEN,true); stage(c,18,713,"Executing","Agents working",BLUE,true); stage(c,18,748,"Verifying","Awaiting final checks",SUBTLE,false);
         }
 
-        private void drawHomeHeader(Canvas c) {
-            roundGlowHome(c, 17, 18, 61, 62, Color.rgb(6, 20, 38), Color.argb(150, 81, 144, 231), 14, Color.argb(36, 77, 141, 230));
-            stroke.setColor(Color.WHITE); stroke.setStrokeWidth(HX(2.3f));
-            c.drawLine(HX(29), HY(30), HX(49), HY(30), stroke); c.drawLine(HX(29), HY(40), HX(49), HY(40), stroke); c.drawLine(HX(29), HY(50), HX(49), HY(50), stroke);
-            drawBrandMark(c, 145, 40);
-            textHome(c, "VEYTRIX", 21, HOME_TEXT, 205, 44, true, true);
-            textHome(c, "AUTONOMOUS AI DEVELOPMENT", 7.1f, HOME_MUTED, 205, 59, true, false);
-            roundGlowHome(c, 309, 18, 343, 52, Color.rgb(7, 17, 31), Color.argb(125, 84, 146, 223), 17, Color.TRANSPARENT);
-            drawBell(c, 326, 35); p.setColor(Color.rgb(255, 81, 111)); c.drawCircle(HX(337), HY(18), HX(3.5f), p);
-            roundGlowHome(c, 349, 18, 383, 52, Color.rgb(7, 17, 31), Color.argb(130, 89, 153, 230), 17, Color.TRANSPARENT);
-            textHome(c, "FH", 11.5f, HOME_TEXT, 366, 41, true, true); p.setColor(HOME_GREEN); c.drawCircle(HX(375), HY(50), HX(4), p);
+        private void drawDetails(Canvas c) {
+            topBar(c,"Mission details",true); icon(c,24,91,IC_RUN,BLUE); txt(c,mission.isEmpty()?"Authentication system":"Mission run",15,TEXT,47,96,false,true); pill(c,286,79,366,106,paused?"Paused":"Running",paused?AMBER:GREEN);
+            cardTitle(c,18,124,"Mission summary",IC_DOC); drawWrapped(c,mission.isEmpty()?"No mission text submitted yet.":mission,8.2f,MUTED,18,161,352,13);
+            round(c,18,210,372,274,SURFACE,BORDER,16); txt(c,"OVERALL PROGRESS",7,SUBTLE,32,234,false,true); txt(c,paused?"46%":"68%",24,TEXT,32,262,false,true); progress(c,32,253,357,paused?AMBER:BLUE,paused?.46f:.68f); txt(c,"Current stage",7,SUBTLE,232,233,false,false); txt(c,paused?"Paused":"Executing",11,TEXT,232,252,false,true);
+            cardTitle(c,18,294,"Execution timeline",IC_ACTIVITY); timeline(c,18,332,"Understanding objective","Scope and constraints captured","Completed",GREEN); timeline(c,18,379,"Planning approach","Execution plan assembled","Completed",GREEN); timeline(c,18,426,"Executing tasks","Agents are processing the mission","Active",BLUE); timeline(c,18,473,"Verifying results","Security and correctness checks","Pending",SUBTLE);
+            round(c,18,520,372,604,SURFACE_2,BORDER,16); icon(c,37,548,IC_SHIELD,GREEN); txt(c,"Verification state",11,TEXT,58,546,false,true); txt(c,"No verification failure reported",7.6f,MUTED,58,563,false,false); button(c,32,576,174,599,"Open results",IC_FOLDER,BLUE,false); button(c,183,576,357,599,"Complete state",IC_CHECK,GREEN,false);
         }
 
-        private void drawHomeHero(Canvas c) {
-            p.setColor(Color.argb(200, 143, 79, 255)); p.setShadowLayer(HX(8), 0, 0, Color.argb(115, 132, 76, 255));
-            c.drawRoundRect(new RectF(HX(18), HY(78), HX(21), HY(194)), HX(1.5f), HX(1.5f), p); p.clearShadowLayer();
-            textHome(c, "Build", 29, HOME_TEXT, 37, 112, false, true); textHome(c, "Without", 29, Color.rgb(191, 173, 255), 37, 142, false, true); textHome(c, "Limits.", 29, Color.rgb(205, 233, 255), 37, 172, false, true);
-            textHome(c, "I D E A S  →  R E A L I T Y", 7.1f, HOME_MUTED, 37, 193, false, false); textHome(c, "A U T O N O M O U S L Y", 7.1f, HOME_TEXT, 37, 207, false, false);
-            roundGlowHome(c, 17, 219, 143, 250, Color.rgb(5, 20, 35), Color.argb(145, 55, 122, 190), 17, Color.argb(20, 60, 169, 255));
-            p.setColor(HOME_GREEN); p.setShadowLayer(HX(7), 0, 0, Color.argb(100, 44, 231, 177)); c.drawCircle(HX(31), HY(234), HX(4.2f), p); p.clearShadowLayer();
-            textHome(c, "AI CORE", 7.1f, HOME_TEXT, 43, 238, false, true); textHome(c, "ONLINE", 7.1f, HOME_GREEN, 82, 238, false, true); textHome(c, "›", 16, HOME_TEXT, 132, 238, true, false);
-            textHome(c, "THINK", 7.0f, HOME_TEXT, 351, 192, true, false); textHome(c, "PLAN", 7.0f, HOME_TEXT, 351, 205, true, false); textHome(c, "EXECUTE", 7.0f, HOME_TEXT, 351, 218, true, false); textHome(c, "VERIFY", 7.0f, HOME_TEXT, 351, 231, true, false);
+        private void drawArtifacts(Canvas c) {
+            topBar(c,"Results",false); sectionTitle(c,"Generated outputs",18,90); txt(c,"Artifacts created by the current mission",7.6f,MUTED,18,106,false,false);
+            artifact(c,18,124,"mission-plan.json","JSON","12 KB",GREEN,IC_CODE); artifact(c,18,198,"verification-report.txt","REPORT","8 KB",GREEN,IC_DOC); artifact(c,18,272,"build-output.apk","ANDROID","4.8 MB",BLUE,IC_PACKAGE); artifact(c,18,346,"execution.log","LOG","96 KB",SUBTLE,IC_LIST);
+            round(c,18,430,372,510,SURFACE_2,BORDER,16); icon(c,39,457,IC_SHIELD,GREEN); txt(c,"Verification output",11,TEXT,60,455,false,true); txt(c,"Checks completed for available local state",7.4f,MUTED,60,472,false,false); pill(c,60,484,151,506,"Verified",GREEN);
+            sectionTitle(c,"Artifact actions",18,544); button(c,18,565,185,604,"Open selected",IC_OPEN,BLUE,false); button(c,195,565,372,604,"Share / export",IC_SHARE,MUTED,false); txt(c,"Opening/exporting artifacts is not connected in this build.",6.9f,SUBTLE,18,626,false,false);
         }
 
-        private void drawHomeComposer(Canvas c) {
-            roundGlowHome(c, 16, 263, 374, 421, HOME_PANEL, Color.argb(188, 125, 101, 255), 19, Color.argb(30, 93, 151, 255));
-            drawSparkle(c, 35, 285); textHome(c, "MISSION / COMMAND", 9.2f, HOME_TEXT, 51, 292, false, true);
-            roundGlowHome(c, 289, 273, 366, 307, Color.rgb(7, 19, 36), Color.argb(135, 87, 127, 213), 12, Color.TRANSPARENT);
-            textHome(c, deepMode ? "Deep Mode" : "Quick Mode", 7.8f, HOME_TEXT, 326, 296, true, false); textHome(c, "⌄", 11.5f, HOME_MUTED, 355, 296, true, false);
-            roundGlowHome(c, 27, 313, 363, 365, Color.rgb(4, 16, 30), Color.argb(165, 102, 144, 231), 14, Color.argb(16, 76, 151, 255));
-            drawComposerButton(c, 26, 374, 100, 412, "Context", 0); drawComposerButton(c, 108, 374, 184, 412, "Voice", 1); drawComposerButton(c, 192, 374, 268, 412, "Attach", 2); drawLaunchButton(c, 276, 374, 364, 412);
+        private void drawTools(Canvas c) {
+            topBar(c,"Control",false); sectionTitle(c,"Mission control",18,90); toolCard(c,18,106,"Pause or resume mission","Controls the current local run state",IC_PAUSE,paused?"Resume":"Pause",AMBER); toolCard(c,18,182,"Mission details","Inspect stages, progress and verification",IC_ACTIVITY,"Open",BLUE); toolCard(c,18,258,"Results","Review generated outputs and logs",IC_FOLDER,"Open",BLUE);
+            sectionTitle(c,"System",18,354); infoRow(c,18,371,"AI orchestration","Ready",GREEN,IC_SPARK); infoRow(c,18,427,"Native Android UI","Active",GREEN,IC_PHONE); infoRow(c,18,483,"Backend actions","Preserved",MUTED,IC_SERVER); infoRow(c,18,539,"Voice / attachments","Not connected",SUBTLE,IC_MIC);
+            round(c,18,612,372,670,SURFACE_2,BORDER,16); txt(c,"Control surface",11,TEXT,34,638,false,true); txt(c,"Use the existing mission flow for real actions.",7.2f,MUTED,34,654,false,false);
         }
 
-        private void drawComposerButton(Canvas c, float l, float t, float r, float b, String label, int icon) { roundGlowHome(c, l, t, r, b, Color.rgb(7, 23, 40), Color.argb(135, 68, 113, 174), 12, Color.TRANSPARENT); if (icon == 0) drawContextIcon(c, l + 17, t + 19); else if (icon == 1) drawMicIcon(c, l + 17, t + 19); else drawAttachIcon(c, l + 17, t + 19); textHome(c, label, 7.6f, HOME_TEXT, l + 32, t + 24, false, false); }
-        private void drawLaunchButton(Canvas c, float l, float t, float r, float b) { p.setShader(new LinearGradient(HX(l), HY(t), HX(r), HY(b), new int[]{Color.rgb(112, 75, 242), Color.rgb(86, 101, 255), Color.rgb(58, 170, 255)}, null, Shader.TileMode.CLAMP)); p.setShadowLayer(HX(11), 0, 0, Color.argb(95, 90, 88, 255)); c.drawRoundRect(new RectF(HX(l), HY(t), HX(r), HY(b)), HX(12), HX(12), p); p.clearShadowLayer(); p.setShader(null); drawPlayIcon(c, l + 22, t + 19); textHome(c, "Launch", 8.5f, Color.WHITE, l + 44, t + 25, false, true); }
-
-        private void drawHomeFeatures(Canvas c) { String[] titles = {"Smart Plan", "Multi-Agent", "Auto Test", "Deploy"}; String[] subs = {"Break down ideas", "Execute with AI", "Verify & secure", "Ship to production"}; float[] xs = {16, 108, 200, 292}; for (int i = 0; i < 4; i++) { roundGlowHome(c, xs[i], 438, xs[i] + 82, 513, Color.rgb(5, 20, 36), Color.argb(132, 62, 125, 203), 16, Color.argb(13, 69, 149, 255)); drawFeatureIcon(c, xs[i] + 18, 460, i); textHome(c, titles[i], 7.55f, HOME_TEXT, xs[i] + 10, 489, false, true); textHome(c, subs[i], 5.85f, HOME_MUTED, xs[i] + 10, 502, false, false); drawChevron(c, xs[i] + 70, 459); } }
-        private void drawHomeMetrics(Canvas c) { roundGlowHome(c, 16, 525, 374, 588, Color.rgb(5, 21, 38), Color.argb(165, 67, 129, 220), 17, Color.argb(15, 68, 148, 255)); stroke.setStrokeWidth(HX(.8f)); stroke.setColor(Color.argb(75, 84, 124, 177)); c.drawLine(HX(105), HY(538), HX(105), HY(576), stroke); c.drawLine(HX(195), HY(538), HX(195), HY(576), stroke); c.drawLine(HX(285), HY(538), HX(285), HY(576), stroke); drawMetric(c, 22, 555, "128", "Missions", 0); drawMetric(c, 112, 555, "24", "Projects", 1); drawMetric(c, 202, 555, "98%", "Success Rate", 2); drawMetric(c, 292, 555, "2.4x", "Faster", 3); }
-        private void drawMetric(Canvas c, float x, float y, String value, String label, int icon) { drawMetricIcon(c, x + 10, y - 12, icon); textHome(c, value, 11.6f, HOME_TEXT, x + 31, y - 3, false, true); textHome(c, label, 6.1f, HOME_MUTED, x + 31, y + 10, false, false); }
-        private void drawHomeRecent(Canvas c) { roundGlowHome(c, 16, 600, 374, 780, Color.rgb(4, 18, 33), Color.argb(165, 66, 127, 219), 18, Color.argb(13, 60, 137, 255)); drawRecentHeaderIcon(c, 31, 621); textHome(c, "Recent Activity", 9.2f, HOME_TEXT, 48, 626, false, true); roundGlowHome(c, 314, 609, 366, 636, Color.rgb(6, 20, 37), Color.argb(110, 78, 128, 206), 12, Color.TRANSPARENT); textHome(c, "View All", 6.8f, HOME_TEXT, 340, 627, true, false); drawRecentItem(c, 23, 648, "Build authentication system", "Completed successfully", "2h", "Success", 0); drawRecentItem(c, 23, 696, "Design modern UI components", "Generated 24 components", "5h", "Completed", 1); drawRecentItem(c, 23, 744, "Optimize database queries", "Performance improved by 70%", "1d", "Optimized", 2); }
-        private void drawRecentItem(Canvas c, float x, float y, String title, String sub, String time, String status, int icon) { roundGlowHome(c, x, y, 367, y + 40, Color.rgb(6, 24, 42), Color.argb(105, 73, 118, 187), 13, Color.TRANSPARENT); int accent = icon == 0 ? Color.rgb(34, 209, 161) : icon == 1 ? Color.rgb(47, 118, 255) : HOME_PURPLE; p.setColor(Color.argb(92, Color.red(accent), Color.green(accent), Color.blue(accent))); c.drawRoundRect(new RectF(HX(x + 8), HY(y + 7), HX(x + 36), HY(y + 33)), HX(8), HX(8), p); p.setColor(accent); c.drawRoundRect(new RectF(HX(x + 8), HY(y + 7), HX(x + 36), HY(y + 33)), HX(8), HX(8), p); if (icon == 0) drawCodeIcon(c, x + 22, y + 20); else if (icon == 1) drawDocIcon(c, x + 22, y + 20); else drawGearIcon(c, x + 22, y + 20); textHome(c, title, 6.8f, HOME_TEXT, x + 46, y + 15, false, true); textHome(c, sub, 5.9f, HOME_MUTED, x + 46, y + 28, false, false); textHome(c, time, 5.9f, HOME_MUTED, 337, y + 12, true, false); roundGlowHome(c, 281, y + 21, 331, y + 35, Color.rgb(6, 31, 33), Color.argb(105, 37, 194, 156), 8, Color.TRANSPARENT); textHome(c, status, 5.55f, HOME_GREEN, 306, y + 31, true, true); drawMoreIcon(c, 354, y + 20); }
-
-        private void drawBottomNav(Canvas c) { roundGlowHome(c, 12, 790, 378, 840, Color.rgb(5, 16, 31), Color.argb(175, 76, 125, 224), 19, Color.argb(13, 96, 112, 255)); navItemHome(c, 50, "Home", true, 0); navItemHome(c, 124, "Activity", false, 1); navItemHome(c, 198, "Results", false, 2); navItemHome(c, 272, "Control", false, 3); navItemHome(c, 346, "More", false, 4); }
-        private void navItemHome(Canvas c, float x, String label, boolean active, int kind) { if (active) { p.setShader(new RadialGradient(HX(x), HY(809), HX(25), new int[]{Color.argb(76, 132, 79, 255), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP)); c.drawCircle(HX(x), HY(809), HX(25), p); p.setShader(null); } drawNavIcon(c, x, 807, kind, active); textHome(c, label, 6.7f, active ? Color.WHITE : HOME_MUTED, x, 836, true, false); }
-        private void drawNavIcon(Canvas c, float cx, float cy, int kind, boolean active) { int color = active ? Color.WHITE : Color.rgb(205, 219, 238); stroke.setColor(color); stroke.setStyle(Paint.Style.STROKE); stroke.setStrokeWidth(HX(1.8f)); if (kind == 0) { Path q = new Path(); q.moveTo(HX(cx - 9), HY(cy - 1)); q.lineTo(HX(cx), HY(cy - 10)); q.lineTo(HX(cx + 9), HY(cy - 1)); q.lineTo(HX(cx + 9), HY(cy + 9)); q.lineTo(HX(cx + 2), HY(cy + 9)); q.lineTo(HX(cx + 2), HY(cy + 2)); q.lineTo(HX(cx - 2), HY(cy + 2)); q.lineTo(HX(cx - 2), HY(cy + 9)); q.lineTo(HX(cx - 9), HY(cy + 9)); q.close(); c.drawPath(q, stroke); } else if (kind == 1) { c.drawRect(HX(cx - 7), HY(cy - 9), HX(cx + 7), HY(cy + 9), stroke); c.drawLine(HX(cx - 4), HY(cy - 4), HX(cx + 4), HY(cy - 4), stroke); c.drawLine(HX(cx - 4), HY(cy), HX(cx + 4), HY(cy), stroke); c.drawLine(HX(cx - 4), HY(cy + 4), HX(cx + 4), HY(cy + 4), stroke); } else if (kind == 2) { c.drawRect(HX(cx - 8), HY(cy - 8), HX(cx + 8), HY(cy + 8), stroke); c.drawLine(HX(cx - 4), HY(cy), HX(cx - 1), HY(cy + 3), stroke); c.drawLine(HX(cx - 1), HY(cy + 3), HX(cx + 5), HY(cy - 4), stroke); } else if (kind == 3) { c.drawCircle(HX(cx - 5), HY(cy - 5), HX(5), stroke); c.drawCircle(HX(cx + 5), HY(cy - 5), HX(5), stroke); c.drawArc(new RectF(HX(cx - 11), HY(cy), HX(cx + 1), HY(cy + 11)), 180, 180, false, stroke); c.drawArc(new RectF(HX(cx - 1), HY(cy), HX(cx + 11), HY(cy + 11)), 180, 180, false, stroke); } else { fill(p, color); c.drawCircle(HX(cx - 7), HY(cy), HX(2), p); c.drawCircle(HX(cx), HY(cy), HX(2), p); c.drawCircle(HX(cx + 7), HY(cy), HX(2), p); } }
-
-        private void drawRuns(Canvas c) { top(c, "Mission Run", false); roundGlowHome(c, 18, 90, 372, 124, Color.rgb(16, 35, 30), Color.rgb(47, 118, 88), 17, Color.TRANSPARENT); circle(c, 36, 107, 5, HOME_GREEN); textHome(c, "EXECUTING", 8.5f, HOME_GREEN, 52, 112, false, true); textHome(c, "00:02:17", 8.5f, HOME_MUTED, 337, 112, true, false); String m = mission.isEmpty() ? "Create a research report on renewable energy trends" : mission; drawWrappedText(c, m, 13.0f, HOME_TEXT, 24, 151, 340, 20, true); drawCore(c, 195, 252, 52); drawChecklist(c, 24, 354); roundGlowHome(c, 24, 540, 366, 594, Color.rgb(247, 225, 181), Color.rgb(248, 228, 190), 26, Color.TRANSPARENT); textHome(c, paused ? "Resume Mission" : "Pause Mission", 11.5f, Color.rgb(34, 32, 28), 195, 574, true, true); roundGlowHome(c, 24, 610, 366, 658, HOME_PANEL_2, Color.rgb(64, 63, 55), 22, Color.TRANSPARENT); textHome(c, "Open run details", 11.5f, HOME_TEXT, 195, 640, true, true); }
-        private void drawDetails(Canvas c) { top(c, "Mission Run", true); roundGlowHome(c, 18, 88, 372, 210, HOME_PANEL, Color.rgb(64, 63, 55), 20, Color.TRANSPARENT); textHome(c, "Mission Timeline", 12, HOME_TEXT, 32, 122, false, true); drawChecklist(c, 30, 154); }
-        private void drawArtifacts(Canvas c) { top(c, "Artifacts", true); chip(c, 18, 86, 66, "All", true); chip(c, 92, 86, 78, "Docs", false); chip(c, 178, 86, 88, "Images", false); chip(c, 274, 86, 82, "Code", false); artifact(c, 18, 138, Color.rgb(239, 93, 79), "Research_Report.pdf", "2.4 MB · Today 09:43"); artifact(c, 18, 202, Color.rgb(80, 205, 157), "Market_Analysis.xlsx", "1.1 MB · Today 09:40"); artifact(c, 18, 266, Color.rgb(88, 155, 223), "Summary.md", "12 KB · Today 09:38"); }
-        private void drawTools(Canvas c) { top(c, "Tools", true); tool(c, 18, 94, "Web Search", "Research & gather", HOME_GOLD()); tool(c, 202, 94, "Code Runner", "Execute code", HOME_CYAN); tool(c, 18, 202, "File Manager", "Organize files", Color.rgb(248, 228, 190)); tool(c, 202, 202, "Browser", "Automate web", HOME_CYAN); }
-        private void drawProfile(Canvas c) { top(c, "Profile", true); roundGlowHome(c, 18, 88, 372, 214, HOME_PANEL, Color.rgb(64, 63, 55), 20, Color.TRANSPARENT); circle(c, 58, 128, 29, Color.rgb(177, 157, 116)); textHome(c, "V", 23, Color.rgb(31, 28, 22), 58, 136, true, true); textHome(c, "VEYTRIX USER", 8.5f, Color.rgb(221, 194, 143), 104, 118, false, false); textHome(c, "Local workspace", 15, HOME_TEXT, 104, 145, false, true); }
-        private void drawSettings(Canvas c) { top(c, "Settings", true); setting(c, 18, 98, "Dark Mode", "Always on", true); setting(c, 18, 156, "Voice Input", "Hands-free missions", true); setting(c, 18, 214, "Notifications", "Mission events and results", true); }
-        private void drawVoice(Canvas c) { top(c, "Voice Input", true); textHome(c, "SPEAK YOUR MISSION CLEARLY", 8.5f, Color.rgb(221, 194, 143), 195, 106, true, true); drawCore(c, 195, 250, 54); textHome(c, "Listening...", 21, HOME_TEXT, 195, 414, true, true); textHome(c, "Voice input is not connected in this build.", 9.5f, HOME_MUTED, 195, 439, true, false); }
-        private void drawCompleted(Canvas c) { top(c, "Mission Completed", true); drawCheckCore(c, 195, 220); textHome(c, "Mission Completed", 21, HOME_TEXT, 195, 370, true, true); textHome(c, "Your result has been generated", 10, HOME_MUTED, 195, 400, true, false); textHome(c, "and verified successfully.", 10, HOME_MUTED, 195, 418, true, false); }
-
-        private void top(Canvas c, String title, boolean back) { p.setShader(null); p.setColor(Color.rgb(6, 11, 18)); c.drawRect(0, 0, getWidth(), HY(67), p); if (back) textHome(c, "‹", 22, HOME_TEXT, 22, 42, true, true); else { roundGlowHome(c, 17, 17, 61, 60, Color.rgb(9, 20, 36), Color.rgb(72, 121, 196), 14, Color.TRANSPARENT); textHome(c, "☰", 21, HOME_TEXT, 39, 44, true, false); } textHome(c, "VEYTRIX", 15, Color.rgb(248, 228, 190), back ? 84 : 95, 29, true, true); textHome(c, "AUTOPILOT", 7.5f, Color.rgb(104, 106, 99), back ? 84 : 95, 44, true, false); if (back) textHome(c, title, 15, HOME_TEXT, 195, 59, true, true); else { roundGlowHome(c, 327, 18, 371, 51, Color.rgb(23, 25, 23), Color.rgb(221, 194, 143), 16, Color.TRANSPARENT); textHome(c, "Pro", 9.5f, Color.rgb(248, 228, 190), 349, 39, true, true); } }
-
-        private void drawDrawer(Canvas c) { p.setColor(Color.argb(150, 0, 0, 0)); c.drawRect(0, 0, getWidth(), getHeight(), p); roundGlowHome(c, 0, 0, 322, 844, Color.rgb(8, 15, 24), Color.rgb(55, 74, 103), 0, Color.TRANSPARENT); textHome(c, "VEYTRIX", 18, HOME_TEXT, 30, 44, false, true); textHome(c, "AUTOPILOT", 7.5f, HOME_MUTED, 31, 59, false, false); roundGlowHome(c, 20, 82, 302, 140, HOME_PANEL_2, Color.rgb(72, 121, 196), 18, Color.TRANSPARENT); circle(c, 54, 110, 20, Color.rgb(116, 96, 255)); textHome(c, "V", 15, Color.WHITE, 54, 116, true, true); textHome(c, "Local workspace", 11.5f, HOME_TEXT, 83, 106, false, true); textHome(c, "PRO PLAN", 7.5f, Color.rgb(221, 194, 143), 83, 123, false, true); drawerRow(c, 168, "Home", HOME); drawerRow(c, 220, "Mission History", RUNS); drawerRow(c, 272, "Artifacts", ARTIFACTS); drawerRow(c, 324, "Tools", TOOLS); drawerRow(c, 376, "Settings", SETTINGS); drawerRow(c, 428, "Voice Input", VOICE); drawerRow(c, 480, "Verification", COMPLETED); }
-        private void drawerRow(Canvas c, float y, String label, int target) { boolean active = page == target; if (active) roundGlowHome(c, 16, y - 23, 304, y + 20, Color.rgb(22, 38, 58), Color.TRANSPARENT, 13, Color.TRANSPARENT); textHome(c, label, 11.5f, active ? HOME_TEXT : HOME_MUTED, 34, y + 2, false, active); drawChevron(c, 286, y - 1); }
-
-        private void drawCore(Canvas c, float cx, float cy, float r) { float rr = r * (1f + (float) Math.sin(pulse) * .015f); p.setShader(new RadialGradient(HX(cx), HY(cy), HX(rr * 1.65f), new int[]{Color.argb(90, 228, 194, 128), Color.argb(20, 228, 194, 128), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP)); c.drawCircle(HX(cx), HY(cy), HX(rr * 1.65f), p); p.setShader(null); stroke.setColor(Color.argb(170, 215, 184, 117)); stroke.setStrokeWidth(HX(1)); RectF ring = new RectF(HX(cx - rr * 1.7f), HY(cy - rr * .72f), HX(cx + rr * 1.7f), HY(cy + rr * .72f)); c.save(); c.rotate(-15, HX(cx), HY(cy)); c.drawOval(ring, stroke); c.restore(); RectF ring2 = new RectF(HX(cx - rr * 1.25f), HY(cy - rr * 1.55f), HX(cx + rr * 1.25f), HY(cy + rr * 1.55f)); stroke.setColor(Color.argb(90, 215, 184, 117)); c.save(); c.rotate(19, HX(cx), HY(cy)); c.drawOval(ring2, stroke); c.restore(); p.setShader(new RadialGradient(HX(cx - rr * .3f), HY(cy - rr * .38f), HX(rr * 1.15f), new int[]{Color.rgb(255, 248, 225), Color.rgb(224, 198, 143), Color.rgb(116, 88, 43), Color.rgb(24, 21, 17)}, new float[]{0f, .18f, .52f, 1f}, Shader.TileMode.CLAMP)); c.drawCircle(HX(cx), HY(cy), HX(rr), p); p.setShader(null); p.setColor(Color.argb(190, 255, 248, 224)); c.drawCircle(HX(cx - rr * .28f), HY(cy - rr * .33f), HX(rr * .16f), p); textHome(c, "V", Math.max(16, rr * .43f), Color.rgb(250, 238, 211), cx, cy + rr * .2f, true, true); }
-        private void drawChecklist(Canvas c, float x, float y) { String[] rows = {"Understanding objective", "Planning approach", "Preparing environment", "Executing tasks", "Verifying results"}; for (int i = 0; i < rows.length; i++) { float yy = y + i * 28; int dot = i < 3 ? Color.rgb(248, 228, 190) : (i == 3 ? HOME_CYAN : Color.rgb(104, 106, 99)); circle(c, x + 6, yy, 4, dot); textHome(c, rows[i], 9.8f, i < 3 ? HOME_MUTED : Color.rgb(104, 106, 99), x + 20, yy + 4, false, false); if (i < 3) textHome(c, "✓", 10, HOME_GREEN, 335, yy + 4, true, true); } }
-        private void chip(Canvas c, float x, float y, float w, String label, boolean active) { roundGlowHome(c, x, y, x + w, y + 32, active ? Color.rgb(247, 225, 181) : HOME_PANEL_2, active ? Color.rgb(248, 228, 190) : Color.rgb(64, 63, 55), 16, Color.TRANSPARENT); textHome(c, label, 9, active ? Color.rgb(31, 29, 23) : HOME_MUTED, x + w / 2, y + 21, true, true); }
-        private void artifact(Canvas c, float x, float y, int color, String name, String meta) { roundGlowHome(c, x, y, 372, y + 52, HOME_PANEL, Color.rgb(37, 42, 40), 14, Color.TRANSPARENT); roundGlowHome(c, x + 10, y + 10, x + 42, y + 42, color, color, 9, Color.TRANSPARENT); textHome(c, "▤", 15, Color.WHITE, x + 26, y + 32, true, false); textHome(c, name, 10.5f, HOME_TEXT, x + 54, y + 22, false, true); textHome(c, meta, 8, HOME_MUTED, x + 54, y + 38, false, false); }
-        private void tool(Canvas c, float x, float y, String title, String sub, int accent) { roundGlowHome(c, x, y, x + 170, y + 96, HOME_PANEL, Color.rgb(41, 44, 40), 18, Color.TRANSPARENT); roundGlowHome(c, x + 10, y + 10, x + 47, y + 47, Color.rgb(24, 31, 41), accent, 10, Color.TRANSPARENT); textHome(c, title, 11, HOME_TEXT, x + 12, y + 67, false, true); textHome(c, sub, 8, HOME_MUTED, x + 12, y + 82, false, false); }
-        private void setting(Canvas c, float x, float y, String title, String sub, boolean on) { roundGlowHome(c, x, y, 372, y + 46, HOME_PANEL, Color.rgb(39, 43, 41), 14, Color.TRANSPARENT); textHome(c, title, 10.5f, HOME_TEXT, x + 18, y + 20, false, true); textHome(c, sub, 8, HOME_MUTED, x + 18, y + 35, false, false); roundGlowHome(c, 322, y + 9, 358, y + 37, on ? Color.rgb(33, 31, 26) : HOME_PANEL_2, on ? Color.rgb(221, 194, 143) : Color.rgb(64, 63, 55), 12, Color.TRANSPARENT); textHome(c, on ? "ON" : "OFF", 7.4f, on ? Color.rgb(221, 194, 143) : HOME_MUTED, 340, y + 27, true, true); }
-        private void drawFeatureIcon(Canvas c, float cx, float cy, int kind) { int accent; if (kind == 0) accent = Color.rgb(194, 165, 255); else if (kind == 1) accent = Color.rgb(225, 231, 255); else if (kind == 2) accent = Color.WHITE; else accent = Color.rgb(196, 218, 255); stroke.setColor(accent); stroke.setStrokeWidth(HX(1.9f)); stroke.setStyle(Paint.Style.STROKE); if (kind == 0) { c.drawCircle(HX(cx), HY(cy), HX(7), stroke); c.drawLine(HX(cx), HY(cy - 10), HX(cx), HY(cy + 10), stroke); c.drawLine(HX(cx - 10), HY(cy), HX(cx + 10), HY(cy), stroke); } else if (kind == 1) { c.drawCircle(HX(cx - 5), HY(cy - 3), HX(4), stroke); c.drawCircle(HX(cx + 5), HY(cy - 3), HX(4), stroke); c.drawArc(new RectF(HX(cx - 11), HY(cy + 1), HX(cx + 1), HY(cy + 10)), 180, 180, false, stroke); c.drawArc(new RectF(HX(cx - 1), HY(cy + 1), HX(cx + 11), HY(cy + 10)), 180, 180, false, stroke); } else if (kind == 2) { Path q = new Path(); q.moveTo(HX(cx - 10), HY(cy)); q.lineTo(HX(cx - 4), HY(cy + 6)); q.lineTo(HX(cx + 9), HY(cy - 9)); c.drawPath(q, stroke); c.drawRect(HX(cx - 11), HY(cy - 11), HX(cx + 11), HY(cy + 11), stroke); } else { Path q = new Path(); q.moveTo(HX(cx - 10), HY(cy + 6)); q.lineTo(HX(cx), HY(cy - 10)); q.lineTo(HX(cx + 10), HY(cy + 6)); q.lineTo(HX(cx), HY(cy + 1)); q.close(); c.drawPath(q, stroke); c.drawCircle(HX(cx), HY(cy - 11), HX(2), stroke); } }
-        private void drawMetricIcon(Canvas c, float cx, float cy, int kind) { stroke.setColor(kind == 0 ? Color.rgb(189, 164, 255) : kind == 1 ? Color.rgb(170, 132, 255) : kind == 2 ? Color.rgb(167, 147, 255) : Color.rgb(165, 181, 255)); stroke.setStrokeWidth(HX(2)); stroke.setStyle(Paint.Style.STROKE); if (kind == 0) { Path q = new Path(); q.moveTo(HX(cx - 5), HY(cy - 11)); q.lineTo(HX(cx + 2), HY(cy - 2)); q.lineTo(HX(cx - 2), HY(cy - 2)); q.lineTo(HX(cx + 5), HY(cy + 9)); q.lineTo(HX(cx - 3), HY(cy)); q.lineTo(HX(cx + 1), HY(cy)); q.close(); c.drawPath(q, stroke); } else if (kind == 1) { c.drawRect(HX(cx - 9), HY(cy - 6), HX(cx - 2), HY(cy + 9), stroke); c.drawRoundRect(new RectF(HX(cx - 1), HY(cy - 10), HX(cx + 7), HY(cy + 9)), HX(2), HX(2), stroke); c.drawRoundRect(new RectF(HX(cx + 8), HY(cy - 8), HX(cx + 16), HY(cy + 9)), HX(2), HX(2), stroke); } else if (kind == 2) { c.drawRect(HX(cx - 9), HY(cy - 4), HX(cx - 1), HY(cy + 10), stroke); c.drawRect(HX(cx + 2), HY(cy - 10), HX(cx + 10), HY(cy + 10), stroke); c.drawRect(HX(cx + 13), HY(cy - 1), HX(cx + 21), HY(cy + 10), stroke); } else { c.drawCircle(HX(cx), HY(cy), HX(9), stroke); c.drawLine(HX(cx), HY(cy), HX(cx), HY(cy - 5), stroke); c.drawLine(HX(cx), HY(cy), HX(cx + 5), HY(cy + 3), stroke); } }
-        private void drawRecentHeaderIcon(Canvas c, float cx, float cy) { fill(p, Color.rgb(179, 139, 255)); c.drawCircle(HX(cx), HY(cy), HX(8), p); stroke.setColor(Color.rgb(236, 231, 255)); stroke.setStrokeWidth(HX(1.3f)); c.drawLine(HX(cx), HY(cy - 4), HX(cx), HY(cy + 4), stroke); c.drawLine(HX(cx - 3), HY(cy), HX(cx + 3), HY(cy), stroke); }
-        private void drawCodeIcon(Canvas c, float cx, float cy) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(HX(1.6f)); c.drawLine(HX(cx - 7), HY(cy), HX(cx - 2), HY(cy - 4), stroke); c.drawLine(HX(cx - 7), HY(cy), HX(cx - 2), HY(cy + 4), stroke); c.drawLine(HX(cx + 7), HY(cy), HX(cx + 2), HY(cy - 4), stroke); c.drawLine(HX(cx + 7), HY(cy), HX(cx + 2), HY(cy + 4), stroke); c.drawLine(HX(cx - 2), HY(cy + 5), HX(cx + 2), HY(cy - 5), stroke); }
-        private void drawDocIcon(Canvas c, float cx, float cy) { fill(p, Color.WHITE); c.drawRoundRect(new RectF(HX(cx - 6), HY(cy - 8), HX(cx + 6), HY(cy + 8)), HX(2), HX(2), p); }
-        private void drawGearIcon(Canvas c, float cx, float cy) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(HX(1.5f)); c.drawCircle(HX(cx), HY(cy), HX(6), stroke); c.drawCircle(HX(cx), HY(cy), HX(2), stroke); for (int i = 0; i < 8; i++) { double a = i * Math.PI / 4; float x1 = (float) Math.cos(a) * 8, y1 = (float) Math.sin(a) * 8; float x2 = (float) Math.cos(a) * 10, y2 = (float) Math.sin(a) * 10; c.drawLine(HX(cx + x1), HY(cy + y1), HX(cx + x2), HY(cy + y2), stroke); } }
-        private void drawMoreIcon(Canvas c, float cx, float cy) { fill(p, HOME_TEXT); c.drawCircle(HX(cx - 6), HY(cy), HX(1.5f), p); c.drawCircle(HX(cx), HY(cy), HX(1.5f), p); c.drawCircle(HX(cx + 6), HY(cy), HX(1.5f), p); }
-        private void drawChevron(Canvas c, float cx, float cy) { stroke.setColor(HOME_MUTED); stroke.setStrokeWidth(HX(1.3f)); Path q = new Path(); q.moveTo(HX(cx - 3), HY(cy - 4)); q.lineTo(HX(cx + 1), HY(cy)); q.lineTo(HX(cx - 3), HY(cy + 4)); c.drawPath(q, stroke); }
-        private void fill(Paint paint, int color) { paint.setShader(null); paint.setStyle(Paint.Style.FILL); paint.setColor(color); }
-        private void roundGlowHome(Canvas c, float l, float t, float r, float b, int fillColor, int border, float radius, int glow) { p.setShader(null); p.setStyle(Paint.Style.FILL); p.setColor(fillColor); if (glow != Color.TRANSPARENT) p.setShadowLayer(HX(8), 0, 0, glow); RectF rr = new RectF(HX(l), HY(t), HX(r), HY(b)); c.drawRoundRect(rr, HX(radius), HX(radius), p); p.clearShadowLayer(); if (border != Color.TRANSPARENT) { p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(Math.max(1f, HX(.8f))); p.setColor(border); c.drawRoundRect(rr, HX(radius), HX(radius), p); p.setStyle(Paint.Style.FILL); } }
-        private void glowCircle(Canvas c, float x, float y, float r, int color) { p.setShader(new RadialGradient(HX(x), HY(y), HX(r), new int[]{color, Color.TRANSPARENT}, null, Shader.TileMode.CLAMP)); c.drawCircle(HX(x), HY(y), HX(r), p); p.setShader(null); }
-        private void circle(Canvas c, float x, float y, float r, int color) { fill(p, color); c.drawCircle(HX(x), HY(y), HX(r), p); }
-        private void textHome(Canvas c, String str, float size, int color, float x, float y, boolean center, boolean bold) { p.setShader(null); p.setStyle(Paint.Style.FILL); p.setColor(color); p.setTextSize(HX(size)); p.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL)); p.setTextAlign(center ? Paint.Align.CENTER : Paint.Align.LEFT); c.drawText(str, HX(x), HY(y), p); }
-        private void drawWrappedText(Canvas c, String value, float size, int color, float x, float y, float maxWidth, float lineStep, boolean bold) { p.setTextSize(HX(size)); p.setTypeface(Typeface.create("sans-serif", bold ? Typeface.BOLD : Typeface.NORMAL)); p.setTextAlign(Paint.Align.LEFT); String[] words = value.split(" "); StringBuilder line = new StringBuilder(); float yy = y; for (String word : words) { String trial = line.length() == 0 ? word : line + " " + word; if (p.measureText(trial) > HX(maxWidth) && line.length() > 0) { textHome(c, line.toString(), size, color, x, yy, false, bold); line = new StringBuilder(word); yy += lineStep; } else line = new StringBuilder(trial); } if (line.length() > 0) textHome(c, line.toString(), size, color, x, yy, false, bold); }
-        private void drawBrandMark(Canvas c, float cx, float cy) { Path v = new Path(); v.moveTo(HX(cx - 13), HY(cy - 14)); v.lineTo(HX(cx - 4), HY(cy + 3)); v.lineTo(HX(cx), HY(cy + 16)); v.lineTo(HX(cx + 13), HY(cy - 14)); v.lineTo(HX(cx + 5), HY(cy - 14)); v.lineTo(HX(cx), HY(cy + 1)); v.lineTo(HX(cx - 5), HY(cy - 14)); v.close(); p.setShader(new LinearGradient(HX(cx - 13), HY(cy - 14), HX(cx + 13), HY(cy + 16), new int[]{HOME_CYAN, Color.rgb(116, 96, 255), Color.rgb(192, 67, 255)}, null, Shader.TileMode.CLAMP)); c.drawPath(v, p); p.setShader(null); }
-        private void drawBell(Canvas c, float cx, float cy) { stroke.setColor(Color.WHITE); stroke.setStyle(Paint.Style.STROKE); stroke.setStrokeCap(Paint.Cap.ROUND); stroke.setStrokeWidth(HX(1.7f)); Path q = new Path(); q.moveTo(HX(cx - 6), HY(cy + 2)); q.quadTo(HX(cx - 5), HY(cy - 7), HX(cx), HY(cy - 7)); q.quadTo(HX(cx + 5), HY(cy - 7), HX(cx + 6), HY(cy + 2)); q.lineTo(HX(cx + 7), HY(cy + 5)); q.lineTo(HX(cx - 7), HY(cy + 5)); q.close(); c.drawPath(q, stroke); c.drawLine(HX(cx - 3), HY(cy + 8), HX(cx + 3), HY(cy + 8), stroke); }
-        private void drawSparkle(Canvas c, float cx, float cy) { Path q = new Path(); q.moveTo(HX(cx), HY(cy - 9)); q.lineTo(HX(cx + 4), HY(cy - 3)); q.lineTo(HX(cx + 10), HY(cy)); q.lineTo(HX(cx + 4), HY(cy + 4)); q.lineTo(HX(cx), HY(cy + 11)); q.lineTo(HX(cx - 4), HY(cy + 4)); q.lineTo(HX(cx - 10), HY(cy)); q.lineTo(HX(cx - 4), HY(cy - 3)); q.close(); p.setShader(new LinearGradient(HX(cx - 8), HY(cy - 8), HX(cx + 8), HY(cy + 8), new int[]{Color.rgb(197, 171, 255), HOME_BLUE}, null, Shader.TileMode.CLAMP)); c.drawPath(q, p); p.setShader(null); }
-        private void drawContextIcon(Canvas c, float cx, float cy) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(HX(1.3f)); Path a = new Path(); a.moveTo(HX(cx - 9), HY(cy - 4)); a.lineTo(HX(cx), HY(cy - 10)); a.lineTo(HX(cx + 9), HY(cy - 4)); a.lineTo(HX(cx), HY(cy + 2)); a.close(); c.drawPath(a, stroke); Path b = new Path(); b.moveTo(HX(cx - 9), HY(cy + 2)); b.lineTo(HX(cx), HY(cy + 8)); b.lineTo(HX(cx + 9), HY(cy + 2)); b.close(); c.drawPath(b, stroke); }
-        private void drawMicIcon(Canvas c, float cx, float cy) { stroke.setColor(HOME_BLUE); stroke.setStrokeWidth(HX(1.7f)); stroke.setStyle(Paint.Style.STROKE); c.drawRoundRect(new RectF(HX(cx - 4), HY(cy - 9), HX(cx + 4), HY(cy + 3)), HX(4), HX(4), stroke); c.drawArc(new RectF(HX(cx - 8), HY(cy - 3), HX(cx + 8), HY(cy + 8)), 0, 180, false, stroke); c.drawLine(HX(cx), HY(cy + 8), HX(cx), HY(cy + 11), stroke); c.drawLine(HX(cx - 4), HY(cy + 11), HX(cx + 4), HY(cy + 11), stroke); }
-        private void drawAttachIcon(Canvas c, float cx, float cy) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(HX(1.7f)); stroke.setStyle(Paint.Style.STROKE); Path q = new Path(); q.moveTo(HX(cx + 6), HY(cy - 7)); q.cubicTo(HX(cx + 11), HY(cy - 2), HX(cx + 7), HY(cy + 4), HX(cx + 3), HY(cy + 8)); q.cubicTo(HX(cx - 3), HY(cy + 13), HX(cx - 10), HY(cy + 7), HX(cx - 6), HY(cy + 2)); q.lineTo(HX(cx + 4), HY(cy - 8)); c.drawPath(q, stroke); }
-        private void drawPlayIcon(Canvas c, float cx, float cy) { fill(p, Color.WHITE); Path q = new Path(); q.moveTo(HX(cx - 5), HY(cy - 8)); q.lineTo(HX(cx + 8), HY(cy)); q.lineTo(HX(cx - 5), HY(cy + 8)); q.close(); c.drawPath(q, p); }
-        private void drawCheckCore(Canvas c, float cx, float cy) { p.setShader(new RadialGradient(HX(cx), HY(cy), HX(85), new int[]{Color.argb(70, 228, 194, 128), Color.TRANSPARENT}, null, Shader.TileMode.CLAMP)); c.drawCircle(HX(cx), HY(cy), HX(85), p); p.setShader(null); stroke.setColor(Color.rgb(248, 228, 190)); stroke.setStrokeWidth(HX(3)); c.drawCircle(HX(cx), HY(cy), HX(52), stroke); Path q = new Path(); q.moveTo(HX(cx - 20), HY(cy + 3)); q.lineTo(HX(cx - 5), HY(cy + 18)); q.lineTo(HX(cx + 28), HY(cy - 20)); c.drawPath(q, stroke); }
-
-        @Override public boolean onTouchEvent(MotionEvent e) {
-            if (e.getAction() != MotionEvent.ACTION_UP) return true;
-            float scale = hs(); if (scale <= 0f) return true; float x = e.getX() / scale; float y = e.getY() / scale;
-            if (drawer) { if (x > 322) { drawer = false; if (page == HOME) showComposer(); invalidate(); return true; } if (y >= 145 && y < 196) select(HOME); else if (y >= 196 && y < 248) select(RUNS); else if (y >= 248 && y < 300) select(ARTIFACTS); else if (y >= 300 && y < 352) select(TOOLS); else if (y >= 352 && y < 404) select(SETTINGS); else if (y >= 404 && y < 456) select(VOICE); else if (y >= 456 && y < 508) select(COMPLETED); return true; }
-            if (page == HOME) { if (y < 70 && x < 82) { drawer = true; hideComposer(); invalidate(); return true; } if (y < 70 && x >= 340) { select(PROFILE); return true; } if (y >= 438 && y < 515) { Toast.makeText(MainActivity.this, "Feature shortcut not connected in this build", Toast.LENGTH_SHORT).show(); return true; } if (y >= 600 && y < 784) { select(RUNS); return true; } if (y >= 784) { if (x < 82) select(HOME); else if (x < 156) select(RUNS); else if (x < 230) select(ARTIFACTS); else if (x < 304) select(TOOLS); else select(PROFILE); return true; } return true; }
-            if (y >= 784) { if (x < 82) select(HOME); else if (x < 156) select(RUNS); else if (x < 230) select(ARTIFACTS); else if (x < 304) select(TOOLS); else select(PROFILE); return true; }
-            if (page == RUNS && y >= 530 && y < 600) { paused = !paused; invalidate(); return true; }
-            if (page == RUNS && y >= 600 && y < 680) { select(DETAILS); return true; }
-            if (page == VOICE && y >= 430) { select(HOME); return true; }
-            return true;
+        private void drawProfile(Canvas c) {
+            topBar(c,"Profile",false); round(c,18,84,372,183,SURFACE,BORDER,20); round(c,34,99,88,153,SURFACE_3,Color.rgb(60,98,144),18); txt(c,"FH",16,TEXT,61,133,true,true); dot(c,76,146,4,GREEN); txt(c,"Fahad Hussain",15,TEXT,106,115,false,true); txt(c,"VEYTRIX user",8,MUTED,106,132,false,false); pill(c,106,145,171,170,"Pro",VIOLET);
+            sectionTitle(c,"Activity summary",18,208); stat(c,18,224,"128","Missions",IC_ACTIVITY); stat(c,145,224,"24","Projects",IC_FOLDER); stat(c,272,224,"98%","Success",IC_CHECK);
+            sectionTitle(c,"Account information",18,312); infoRow(c,18,329,"Account","Active",GREEN,IC_USER); infoRow(c,18,385,"Identity","FH",MUTED,IC_USER); infoRow(c,18,441,"Workspace","Veytrix Autopilot",MUTED,IC_FOLDER);
+            sectionTitle(c,"Account actions",18,514); button(c,18,532,181,570,"Settings",IC_GEAR,BLUE,false); button(c,191,532,372,570,"Sign out",IC_LOGOUT,RED,false);
         }
-        private void select(int target) { page = target; drawer = false; if (target == HOME) showComposer(); else hideComposer(); invalidate(); }
+
+        private void drawSettings(Canvas c) {
+            topBar(c,"Settings",false); sectionTitle(c,"General",18,90); setting(c,18,107,"Appearance","Dark",IC_SUN); setting(c,18,157,"Mission / AI","Deep Mode",IC_SPARK); setting(c,18,207,"Notifications",localNotifications?"Enabled":"Muted",IC_BELL); sectionTitle(c,"Privacy",18,271); setting(c,18,288,"Data surface","Local UI state only",IC_SHIELD); setting(c,18,338,"Support","Available in-app",IC_HELP); sectionTitle(c,"About",18,402); infoRow(c,18,420,"Version","1.0.0",MUTED,IC_INFO); infoRow(c,18,475,"Platform","Native Android",GREEN,IC_PHONE); infoRow(c,18,530,"Motion","Standard",localReducedMotion?AMBER:MUTED,IC_ACTIVITY); round(c,18,596,372,657,SURFACE_2,BORDER,16); txt(c,"VEYTRIX",12,TEXT,34,620,false,true); txt(c,"Autonomous engineering control",7.4f,MUTED,34,638,false,false);
+        }
+
+        private void drawVoice(Canvas c) {
+            topBar(c,"Voice",false); round(c,18,84,372,166,SURFACE,BORDER,20); icon(c,40,114,IC_MIC,BLUE); txt(c,"Voice input",13,TEXT,63,117,false,true); pill(c,63,129,129,154,"Idle",SUBTLE);
+            round(c,18,182,372,392,SURFACE_2,BORDER,22); drawMicOrb(c,195,271); txt(c,"Ready for voice input",13,TEXT,195,329,true,true); txt(c,"The voice action is intentionally unconnected in this build.",7.6f,MUTED,195,350,true,false); button(c,98,361,292,388,"Voice unavailable",IC_MIC,SUBTLE,false);
+            sectionTitle(c,"Voice states",18,430); stateCard(c,18,448,"Idle","Ready for input",SUBTLE); stateCard(c,18,501,"Listening","Awaiting connection",BLUE); stateCard(c,18,554,"Processing","Awaiting connection",VIOLET);
+        }
+
+        private void drawCompleted(Canvas c) {
+            topBar(c,"Completed",true); round(c,18,84,372,181,SURFACE,BORDER,20); icon(c,43,116,IC_CHECK,GREEN); txt(c,"Mission completed",14,TEXT,64,118,false,true); pill(c,64,131,138,156,"Verified",GREEN); txt(c,mission.isEmpty()?"Build authentication system":mission,8.4f,MUTED,64,169,false,false);
+            round(c,18,196,372,297,SURFACE_2,BORDER,18); txt(c,"SUMMARY",7,SUBTLE,34,219,false,true); drawWrapped(c,"The run reached its completed state and the available verification summary is ready for review.",8.2f,MUTED,34,239,314,13); progress(c,34,275,350,GREEN,1f);
+            sectionTitle(c,"Verification",18,324); infoRow(c,18,341,"Correctness checks","Passed",GREEN,IC_CHECK); infoRow(c,18,397,"Security checks","Passed",GREEN,IC_SHIELD); infoRow(c,18,453,"Generated results","Available",BLUE,IC_FOLDER);
+            sectionTitle(c,"Next actions",18,522); button(c,18,540,183,580,"Open results",IC_FOLDER,BLUE,false); button(c,191,540,372,580,"New mission",IC_PLUS,VIOLET,false);
+        }
+
+        private void drawBottomNav(Canvas c) {
+            round(c,12,784,378,840,Color.rgb(5,14,26),Color.rgb(41,72,109),20); nav(c,50,"Home",HOME,0); nav(c,124,"Activity",RUNS,1); nav(c,198,"Results",ARTIFACTS,2); nav(c,272,"Control",TOOLS,3); nav(c,346,"More",PROFILE,4);
+        }
+
+        private void nav(Canvas c,float x,String label,int target,int kind){ boolean active=page==target; int col=active?TEXT:MUTED; if(active){ p.setShader(new RadialGradient(X(x),Y(801),X(24),new int[]{Color.argb(60,130,95,255),Color.TRANSPARENT},null,Shader.TileMode.CLAMP)); c.drawCircle(X(x),Y(801),X(24),p); p.setShader(null);} icon(c,x,800,new int[]{IC_HOME,IC_ACTIVITY,IC_FOLDER,IC_SLIDERS,IC_MORE}[kind],col); txt(c,label,6.7f,col,x,828,true,active); }
+
+        private void drawDrawer(Canvas c,float prog) {
+            p.setColor(Color.argb((int)(135*prog),0,0,0)); c.drawRect(0,0,getWidth(),getHeight(),p);
+            float left=X(-310 + 310*prog); float right=left+X(310);
+            p.setColor(Color.rgb(5,14,26)); c.drawRoundRect(new RectF(left,0,right,getHeight()),0,0,p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(X(.7f)); p.setColor(Color.rgb(53,88,130)); c.drawLine(right,0,right,getHeight(),p); p.setStyle(Paint.Style.FILL);
+            float ox= -310+310*prog;
+            drawBrandMark(c,ox+49,44); txtAt(c,"VEYTRIX",15,TEXT,ox+75,45,false,true); txtAt(c,"AUTONOMOUS CONTROL",6.8f,MUTED,ox+75,58,false,false);
+            drawerItem(c,ox+20,92,"Home",IC_HOME,HOME, page==HOME); drawerItem(c,ox+20,144,"Activity",IC_ACTIVITY,RUNS,page==RUNS); drawerItem(c,ox+20,196,"Results",IC_FOLDER,ARTIFACTS,page==ARTIFACTS); drawerItem(c,ox+20,248,"Control",IC_SLIDERS,TOOLS,page==TOOLS); drawerItem(c,ox+20,300,"Voice",IC_MIC,VOICE,page==VOICE); drawerItem(c,ox+20,352,"Profile",IC_USER,PROFILE,page==PROFILE);
+            cLineAt(c,ox+20,414,ox+288,414,Color.rgb(39,67,100)); txtAt(c,"Workspace",7,SUBTLE,ox+24,438,false,true); drawerItem(c,ox+20,450,"Settings",IC_GEAR,SETTINGS,page==SETTINGS); drawerItem(c,ox+20,502,"Support",IC_HELP,SETTINGS,false);
+            roundAt(c,ox+20,580,ox+288,646,SURFACE_2,BORDER,16); dotAt(c,ox+38,603,4,GREEN); txtAt(c,"System status",8.2f,TEXT,ox+52,608,false,true); txtAt(c,"Native Android • Ready",6.9f,MUTED,ox+52,625,false,false);
+        }
+
+        private void drawerItem(Canvas c,float x,float y,String label,int k,int target,boolean active){ if(active) round(c,x,y,x+268,y+42,Color.rgb(11,30,49),Color.rgb(53,96,148),12); icon(c,x+23,y+21,k,active?TEXT:MUTED); txt(c,label,9.1f,active?TEXT:MUTED,x+46,y+26,false,active); }
+
+        private void topBar(Canvas c,String title,boolean back){ round(c,16,16,374,66,SURFACE,BORDER,18); icon(c,38,41,back?IC_BACK:IC_MENU,MUTED); txt(c,title,15,TEXT,66,47,false,true); txt(c,"VEYTRIX",7,SUBTLE,66,61,false,false); round(c,332,27,366,58,SURFACE_2,BORDER,16); txt(c,"FH",9,TEXT,349,48,true,true); }
+        private void sectionTitle(Canvas c,String t,float x,float y){ txt(c,t,11.2f,TEXT,x,y,false,true); }
+        private void cardTitle(Canvas c,float x,float y,String t,int k){ round(c,x,y,x+354,y+48,SURFACE,BORDER,15); icon(c,x+18,y+24,k,BLUE); txt(c,t,10.4f,TEXT,x+40,y+29,false,true); }
+
+        private void feature(Canvas c,float x,float y,String title,String sub,int k,int col){ round(c,x,y,x+82,y+77,SURFACE,BORDER,15); icon(c,x+18,y+20,k,col); txt(c,title,7.4f,TEXT,x+10,y+45,false,true); txt(c,sub,5.8f,MUTED,x+10,y+60,false,false); icon(c,x+70,y+19,IC_CHEVRON,SUBTLE); }
+        private void activity(Canvas c,float x,float y,String title,String sub,String time,int col,int k){ round(c,x,y,374,y+39,SURFACE,BORDER,12); round(c,x+8,y+7,x+36,y+32,Color.argb(90,Color.red(col),Color.green(col),Color.blue(col)),Color.TRANSPARENT,8); icon(c,x+22,y+20,k,Color.WHITE); txt(c,title,6.8f,TEXT,x+46,y+15,false,true); txt(c,sub,5.8f,MUTED,x+46,y+28,false,false); txt(c,time,5.8f,SUBTLE,339,y+15,true,false); }
+        private void runRow(Canvas c,float x,float y,String title,String sub,String time,int col,String pct,int k){ round(c,x,y,372,y+72,SURFACE,BORDER,15); icon(c,x+22,y+24,k,col); txt(c,title,9.1f,TEXT,x+43,y+21,false,true); txt(c,sub,6.6f,MUTED,x+43,y+38,false,false); txt(c,time,6.1f,SUBTLE,340,y+18,true,false); progress(c,43,y+49,288,col,Float.parseFloat(pct.replace("%",""))/100f); txt(c,pct,6.6f,col,334,y+52,true,true); }
+        private void stage(Canvas c,float x,float y,String title,String sub,int col,boolean done){ dot(c,x+7,y,5,col); txt(c,title,8.5f,TEXT,x+22,y+4,false,true); txt(c,sub,6.4f,MUTED,x+87,y+4,false,false); if(done) icon(c,346,y,IC_CHECK,col); }
+        private void timeline(Canvas c,float x,float y,String title,String sub,String status,int col){ dot(c,x+10,y,5,col); txt(c,title,8.2f,TEXT,x+26,y+4,false,true); txt(c,sub,6.5f,MUTED,x+26,y+18,false,false); pill(c,286,y-10,360,y+12,status,col); }
+        private void artifact(Canvas c,float x,float y,String name,String type,String size,int col,int k){ round(c,x,y,372,y+60,SURFACE,BORDER,14); icon(c,x+22,y+30,k,col); txt(c,name,8.5f,TEXT,x+42,y+24,false,true); txt(c,type+"  •  "+size,6.3f,MUTED,x+42,y+40,false,false); icon(c,346,y+30,IC_OPEN,SUBTLE); }
+        private void toolCard(Canvas c,float x,float y,String title,String sub,int k,String action,int col){ round(c,x,y,372,y+60,SURFACE,BORDER,14); icon(c,x+22,y+30,k,col); txt(c,title,8.4f,TEXT,x+42,y+23,false,true); txt(c,sub,6.4f,MUTED,x+42,y+40,false,false); button(c,286,y+16,358,y+44,action,action.equals("Pause")?IC_PAUSE:IC_OPEN,col,false); }
+        private void infoRow(Canvas c,float x,float y,String key,String value,int col,int k){ round(c,x,y,372,y+46,SURFACE,BORDER,12); icon(c,x+22,y+23,k,col); txt(c,key,7.6f,MUTED,x+42,y+27,false,false); txt(c,value,8.2f,TEXT,348,y+27,true,true); }
+        private void stat(Canvas c,float x,float y,String v,String label,int k){ round(c,x,y,x+118,y+65,SURFACE,BORDER,14); icon(c,x+18,y+19,k,BLUE); txt(c,v,14,TEXT,x+18,y+44,false,true); txt(c,label,6.6f,MUTED,x+18,y+57,false,false); }
+        private void setting(Canvas c,float x,float y,String key,String value,int k){ round(c,x,y,372,y+42,SURFACE,BORDER,12); icon(c,x+20,y+21,k,MUTED); txt(c,key,8.3f,TEXT,x+40,y+26,false,true); txt(c,value,7.0f,MUTED,348,y+26,true,false); }
+        private void stateCard(Canvas c,float x,float y,String a,String b,int col){ round(c,x,y,372,y+44,SURFACE,BORDER,12); dot(c,x+20,y+22,4,col); txt(c,a,7.8f,TEXT,x+34,y+26,false,true); txt(c,b,6.8f,MUTED,348,y+26,true,false); }
+        private void metric(Canvas c,float x,float y,String v,String label,int k){ icon(c,x+8,y-10,k,VIOLET); txt(c,v,11.4f,TEXT,x+29,y-4,false,true); txt(c,label,6.3f,MUTED,x+29,y+10,false,false); }
+        private void progress(Canvas c,float l,float y,float r,int col,float value){ round(c,l,y,r,y+4,Color.rgb(29,48,70),Color.TRANSPARENT,2); round(c,l,y,l+(r-l)*Math.max(0,Math.min(1,value)),y+4,col,Color.TRANSPARENT,2); }
+        private void pill(Canvas c,float l,float t,float r,float b,String s,int col){ round(c,l,t,r,b,Color.argb(28,Color.red(col),Color.green(col),Color.blue(col)),Color.argb(92,Color.red(col),Color.green(col),Color.blue(col)),10); txt(c,s,6.6f,col,(l+r)/2,t+12,true,true); }
+        private void composerLabel(Canvas c,float x,float y,String s,int k,int col){ icon(c,x-13,y-1,k,col); txt(c,s,7.5f,TEXT,x+1,y+3,false,false); }
+        private void gradientButton(Canvas c,float l,float t,float r,float b,String s,int k){ p.setShader(new LinearGradient(X(l),Y(t),X(r),Y(b),new int[]{Color.rgb(122,80,240),Color.rgb(71,131,255),Color.rgb(54,177,241)},null,Shader.TileMode.CLAMP)); c.drawRoundRect(new RectF(X(l),Y(t),X(r),Y(b)),X(12),X(12),p); p.setShader(null); icon(c,(l+r)/2-18,(t+b)/2,k,Color.WHITE); txt(c,s,8.2f,Color.WHITE,(l+r)/2+8,t+25,true,true); }
+        private void button(Canvas c,float l,float t,float r,float b,String s,int k,int col,boolean disabled){ int fill=disabled?Color.rgb(17,28,42):Color.rgb(9,24,40); round(c,l,t,r,b,fill,Color.argb(120,Color.red(col),Color.green(col),Color.blue(col)),11); icon(c,l+18,(t+b)/2,k,disabled?SUBTLE:col); txt(c,s,7.4f,disabled?SUBTLE:TEXT,l+34,t+16,false,true); }
+        private void round(Canvas c,float l,float t,float r,float b,int fill,int border,float rad){ p.setShader(null); p.setStyle(Paint.Style.FILL); p.setColor(fill); RectF q=new RectF(X(l),Y(t),X(r),Y(b)); c.drawRoundRect(q,X(rad),X(rad),p); if(border!=Color.TRANSPARENT){p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(1,X(.7f)));p.setColor(border);c.drawRoundRect(q,X(rad),X(rad),p);p.setStyle(Paint.Style.FILL);} }
+        private void roundAt(Canvas c,float l,float t,float r,float b,int fill,int border,float rad){p.setColor(fill);p.setStyle(Paint.Style.FILL);c.drawRoundRect(new RectF(X(l),Y(t),X(r),Y(b)),X(rad),X(rad),p);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(X(.7f));p.setColor(border);c.drawRoundRect(new RectF(X(l),Y(t),X(r),Y(b)),X(rad),X(rad),p);p.setStyle(Paint.Style.FILL);}
+        private void txt(Canvas c,String s,float sz,int col,float x,float y,boolean center,boolean bold){p.setShader(null);p.setColor(col);p.setStyle(Paint.Style.FILL);p.setTextSize(X(sz));p.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));p.setTextAlign(center?Paint.Align.CENTER:Paint.Align.LEFT);c.drawText(s,X(x),Y(y),p);}
+        private void txtAt(Canvas c,String s,float sz,int col,float x,float y,boolean center,boolean bold){p.setColor(col);p.setTextSize(X(sz));p.setTypeface(Typeface.create("sans-serif",bold?Typeface.BOLD:Typeface.NORMAL));p.setTextAlign(center?Paint.Align.CENTER:Paint.Align.LEFT);c.drawText(s,X(x),Y(y),p);}
+        private void drawWrapped(Canvas c,String s,float sz,int col,float x,float y,float max,float line){p.setTextSize(X(sz));String[] w=s.split(" ");StringBuilder b=new StringBuilder();float yy=y;for(String z:w){String n=b.length()==0?z:b+" "+z;if(p.measureText(n)>X(max)&&b.length()>0){txt(c,b.toString(),sz,col,x,yy,false,false);b=new StringBuilder(z);yy+=line;}else b=new StringBuilder(n);}if(b.length()>0)txt(c,b.toString(),sz,col,x,yy,false,false);}
+        private void cLine(Canvas c,float x1,float y1,float x2,float y2,int col){stroke.setColor(col);stroke.setStrokeWidth(X(.7f));c.drawLine(X(x1),Y(y1),X(x2),Y(y2),stroke);}
+        private void cLineAt(Canvas c,float x1,float y1,float x2,float y2,int col){stroke.setColor(col);stroke.setStrokeWidth(X(.7f));c.drawLine(X(x1),Y(y1),X(x2),Y(y2),stroke);}
+        private void dot(Canvas c,float x,float y,float r,int col){p.setStyle(Paint.Style.FILL);p.setColor(col);c.drawCircle(X(x),Y(y),X(r),p);}
+        private void dotAt(Canvas c,float x,float y,float r,int col){p.setColor(col);c.drawCircle(X(x),Y(y),X(r),p);}
+        private void drawLogo(Canvas c,float x,float y){drawBrandMark(c,x,y);}
+        private void drawBrandMark(Canvas c,float x,float y){Path q=new Path();q.moveTo(X(x-13),Y(y-13));q.lineTo(X(x-4),Y(y+3));q.lineTo(X(x),Y(y+15));q.lineTo(X(x+13),Y(y-13));q.lineTo(X(x+5),Y(y-13));q.lineTo(X(x),Y(y+1));q.lineTo(X(x-5),Y(y-13));q.close();p.setShader(new LinearGradient(X(x-13),Y(y-13),X(x+13),Y(y+15),new int[]{CYAN,VIOLET,Color.rgb(210,80,245)},null,Shader.TileMode.CLAMP));c.drawPath(q,p);p.setShader(null);}
+        private void drawMicOrb(Canvas c,float x,float y){p.setShader(new RadialGradient(X(x),Y(y),X(58),new int[]{Color.argb(60,72,216,248),Color.argb(18,151,100,255),Color.TRANSPARENT},null,Shader.TileMode.CLAMP));c.drawCircle(X(x),Y(y),X(58),p);p.setShader(null);round(c,x-24,y-30,x+24,y+30,Color.rgb(10,29,49),Color.rgb(66,119,169),20);icon(c,x,y,IC_MIC,BLUE);}
+
+        private static final int IC_MENU=1,IC_BELL=2,IC_HOME=3,IC_ACTIVITY=4,IC_FOLDER=5,IC_SLIDERS=6,IC_MORE=7,IC_RUN=8,IC_DOC=9,IC_GEAR=10,IC_CHECK=11,IC_SHIELD=12,IC_MIC=13,IC_PACKAGE=14,IC_LIST=15,IC_OPEN=16,IC_SHARE=17,IC_PLAN=18,IC_AGENT=19,IC_CLOCK=20,IC_CODE=21,IC_DEPLOY=22,IC_SPARK=23,IC_CONTEXT=24,IC_ATTACH=25,IC_PLAY=26,IC_PAUSE=27,IC_PHONE=28,IC_SERVER=29,IC_USER=30,IC_LOGOUT=31,IC_SUN=32,IC_HELP=33,IC_INFO=34,IC_BACK=35,IC_PLUS=36,IC_CHEVRON=37;
+
+        private void icon(Canvas c,float x,float y,int kind,int col){stroke.setColor(col);stroke.setStrokeWidth(X(1.6f));stroke.setStyle(Paint.Style.STROKE);Path q=new Path();
+            switch(kind){
+                case IC_MENU:c.drawLine(X(x-9),Y(y-6),X(x+9),Y(y-6),stroke);c.drawLine(X(x-9),Y(y),X(x+9),Y(y),stroke);c.drawLine(X(x-9),Y(y+6),X(x+9),Y(y+6),stroke);break;
+                case IC_BELL:q.moveTo(X(x-7),Y(y+4));q.quadTo(X(x-5),Y(y-7),X(x),Y(y-7));q.quadTo(X(x+5),Y(y-7),X(x+7),Y(y+4));q.lineTo(X(x+9),Y(y+5));q.lineTo(X(x-9),Y(y+5));c.drawPath(q,stroke);c.drawLine(X(x-3),Y(y+9),X(x+3),Y(y+9),stroke);break;
+                case IC_HOME:q.moveTo(X(x-9),Y(y));q.lineTo(X(x),Y(y-8));q.lineTo(X(x+9),Y(y));q.lineTo(X(x+7),Y(y));q.lineTo(X(x+7),Y(y+9));q.lineTo(X(x-7),Y(y+9));q.lineTo(X(x-7),Y(y));q.close();c.drawPath(q,stroke);break;
+                case IC_ACTIVITY:c.drawLine(X(x-9),Y(y+7),X(x-3),Y(y-2),stroke);c.drawLine(X(x-3),Y(y-2),X(x+2),Y(y+2),stroke);c.drawLine(X(x+2),Y(y+2),X(x+9),Y(y-7),stroke);break;
+                case IC_FOLDER:q.addRoundRect(new RectF(X(x-9),Y(y-6),X(x+9),Y(y+8)),X(2),X(2),Path.Direction.CW);q.moveTo(X(x-8),Y(y-6));q.lineTo(X(x-3),Y(y-10));q.lineTo(X(x+3),Y(y-10));q.lineTo(X(x+6),Y(y-6));c.drawPath(q,stroke);break;
+                case IC_SLIDERS:c.drawLine(X(x-8),Y(y-6),X(x+8),Y(y-6),stroke);c.drawLine(X(x-8),Y(y),X(x+8),Y(y),stroke);c.drawLine(X(x-8),Y(y+6),X(x+8),Y(y+6),stroke);c.drawCircle(X(x-3),Y(y-6),X(2),stroke);c.drawCircle(X(x+3),Y(y),X(2),stroke);c.drawCircle(X(x-2),Y(y+6),X(2),stroke);break;
+                case IC_MORE:c.drawCircle(X(x-6),Y(y),X(1.7f),p);c.drawCircle(X(x),Y(y),X(1.7f),p);c.drawCircle(X(x+6),Y(y),X(1.7f),p);break;
+                case IC_RUN:c.drawCircle(X(x),Y(y),X(9),stroke);q.moveTo(X(x-2),Y(y-5));q.lineTo(X(x+5),Y(y));q.lineTo(X(x-2),Y(y+5));c.drawPath(q,stroke);break;
+                case IC_DOC:q.addRoundRect(new RectF(X(x-7),Y(y-10),X(x+7),Y(y+10)),X(2),X(2),Path.Direction.CW);c.drawLine(X(x-3),Y(y-3),X(x+3),Y(y-3),stroke);c.drawLine(X(x-3),Y(y+2),X(x+4),Y(y+2),stroke);break;
+                case IC_GEAR:c.drawCircle(X(x),Y(y),X(6),stroke);c.drawCircle(X(x),Y(y),X(2),stroke);for(int i=0;i<8;i++){double a=i*Math.PI/4;c.drawLine(X(x+(float)Math.cos(a)*8),Y(y+(float)Math.sin(a)*8),X(x+(float)Math.cos(a)*10),Y(y+(float)Math.sin(a)*10),stroke);}break;
+                case IC_CHECK:q.moveTo(X(x-6),Y(y));q.lineTo(X(x-2),Y(y+4));q.lineTo(X(x+7),Y(y-6));c.drawPath(q,stroke);break;
+                case IC_SHIELD:q.moveTo(X(x),Y(y-9));q.lineTo(X(x+8),Y(y-5));q.lineTo(X(x+6),Y(y+5));q.lineTo(X(x),Y(y+10));q.lineTo(X(x-6),Y(y+5));q.lineTo(X(x-8),Y(y-5));q.close();c.drawPath(q,stroke);break;
+                case IC_MIC:c.drawRoundRect(new RectF(X(x-4),Y(y-9),X(x+4),Y(y+3)),X(4),X(4),stroke);c.drawArc(new RectF(X(x-8),Y(y-3),X(x+8),Y(y+8)),0,180,false,stroke);c.drawLine(X(x),Y(y+8),X(x),Y(y+11),stroke);break;
+                case IC_PACKAGE:c.drawRect(new RectF(X(x-8),Y(y-7),X(x+8),Y(y+7)),stroke);c.drawLine(X(x-8),Y(y-3),X(x),Y(y+1),stroke);c.drawLine(X(x+8),Y(y-3),X(x),Y(y+1),stroke);break;
+                case IC_LIST:for(int i=-1;i<=1;i++){c.drawLine(X(x-8),Y(y+i*6),X(x-4),Y(y+i*6),stroke);c.drawLine(X(x-1),Y(y+i*6),X(x+8),Y(y+i*6),stroke);}break;
+                case IC_OPEN:q.moveTo(X(x-6),Y(y+2));q.lineTo(X(x+1),Y(y-5));c.drawPath(q,stroke);c.drawRect(new RectF(X(x-8),Y(y-2),X(x+4),Y(y+8)),stroke);c.drawLine(X(x+2),Y(y-7),X(x+8),Y(y-7),stroke);c.drawLine(X(x+8),Y(y-7),X(x+8),Y(y-1),stroke);break;
+                case IC_SHARE:c.drawCircle(X(x-6),Y(y),X(3),stroke);c.drawCircle(X(x+6),Y(y-6),X(3),stroke);c.drawCircle(X(x+6),Y(y+6),X(3),stroke);c.drawLine(X(x-3),Y(y-1),X(x+3),Y(y-5),stroke);c.drawLine(X(x-3),Y(y+1),X(x+3),Y(y+5),stroke);break;
+                case IC_PLAN:q.moveTo(X(x-9),Y(y));q.lineTo(X(x),Y(y-7));q.lineTo(X(x+9),Y(y));q.lineTo(X(x),Y(y+7));q.close();c.drawPath(q,stroke);break;
+                case IC_AGENT:c.drawCircle(X(x-5),Y(y-3),X(4),stroke);c.drawCircle(X(x+5),Y(y-3),X(4),stroke);c.drawLine(X(x-7),Y(y+6),X(x+7),Y(y+6),stroke);break;
+                case IC_CLOCK:c.drawCircle(X(x),Y(y),X(8),stroke);c.drawLine(X(x),Y(y),X(x),Y(y-5),stroke);c.drawLine(X(x),Y(y),X(x+4),Y(y+3),stroke);break;
+                case IC_CODE:c.drawLine(X(x-8),Y(y),X(x-3),Y(y-4),stroke);c.drawLine(X(x-8),Y(y),X(x-3),Y(y+4),stroke);c.drawLine(X(x+8),Y(y),X(x+3),Y(y-4),stroke);c.drawLine(X(x+8),Y(y),X(x+3),Y(y+4),stroke);c.drawLine(X(x-1),Y(y+6),X(x+2),Y(y-6),stroke);break;
+                case IC_DEPLOY:q.moveTo(X(x),Y(y-10));q.lineTo(X(x+8),Y(y+5));q.lineTo(X(x),Y(y+2));q.lineTo(X(x-8),Y(y+5));q.close();c.drawPath(q,stroke);c.drawCircle(X(x),Y(y-10),X(2),stroke);break;
+                case IC_SPARK:q.moveTo(X(x),Y(y-9));q.lineTo(X(x+3),Y(y-3));q.lineTo(X(x+9),Y(y));q.lineTo(X(x+3),Y(y+3));q.lineTo(X(x),Y(y+9));q.lineTo(X(x-3),Y(y+3));q.lineTo(X(x-9),Y(y));q.lineTo(X(x-3),Y(y-3));q.close();c.drawPath(q,stroke);break;
+                case IC_CONTEXT:q.moveTo(X(x-8),Y(y-4));q.lineTo(X(x),Y(y-9));q.lineTo(X(x+8),Y(y-4));q.lineTo(X(x),Y(y+1));q.close();c.drawPath(q,stroke);q.reset();q.moveTo(X(x-8),Y(y+2));q.lineTo(X(x),Y(y+7));q.lineTo(X(x+8),Y(y+2));c.drawPath(q,stroke);break;
+                case IC_ATTACH:q.moveTo(X(x+5),Y(y-7));q.cubicTo(X(x+10),Y(y-2),X(x+7),Y(y+4),X(x+2),Y(y+8));q.cubicTo(X(x-4),Y(y+13),X(x-10),Y(y+7),X(x-5),Y(y+2));q.lineTo(X(x+4),Y(y-8));c.drawPath(q,stroke);break;
+                case IC_PLAY:q.moveTo(X(x-5),Y(y-7));q.lineTo(X(x+7),Y(y));q.lineTo(X(x-5),Y(y+7));q.close();c.drawPath(q,stroke);break;
+                case IC_PAUSE:c.drawRect(new RectF(X(x-6),Y(y-7),X(x-2),Y(y+7)),stroke);c.drawRect(new RectF(X(x+2),Y(y-7),X(x+6),Y(y+7)),stroke);break;
+                case IC_PHONE:c.drawRoundRect(new RectF(X(x-7),Y(y-10),X(x+7),Y(y+10)),X(2),X(2),stroke);c.drawLine(X(x-3),Y(y+7),X(x+3),Y(y+7),stroke);break;
+                case IC_SERVER:c.drawRoundRect(new RectF(X(x-8),Y(y-8),X(x+8),Y(y-2)),X(2),X(2),stroke);c.drawRoundRect(new RectF(X(x-8),Y(y+2),X(x+8),Y(y+8)),X(2),X(2),stroke);break;
+                case IC_USER:c.drawCircle(X(x),Y(y-4),X(4),stroke);q.addArc(new RectF(X(x-8),Y(y+1),X(x+8),Y(y+11)),180,180);c.drawPath(q,stroke);break;
+                case IC_LOGOUT:c.drawRect(new RectF(X(x-8),Y(y-8),X(x-3),Y(y+8)),stroke);c.drawLine(X(x-1),Y(y),X(x+8),Y(y),stroke);c.drawLine(X(x+8),Y(y),X(x+4),Y(y-4),stroke);c.drawLine(X(x+8),Y(y),X(x+4),Y(y+4),stroke);break;
+                case IC_SUN:c.drawCircle(X(x),Y(y),X(5),stroke);for(int i=0;i<8;i++){double a=i*Math.PI/4;c.drawLine(X(x+(float)Math.cos(a)*8),Y(y+(float)Math.sin(a)*8),X(x+(float)Math.cos(a)*10),Y(y+(float)Math.sin(a)*10),stroke);}break;
+                case IC_HELP:c.drawCircle(X(x),Y(y),X(8),stroke);txt(c,"?",9,col,x,y+4,true,true);break;
+                case IC_INFO:c.drawCircle(X(x),Y(y),X(8),stroke);txt(c,"i",9,col,x,y+4,true,true);break;
+                case IC_BACK:q.moveTo(X(x+5),Y(y-7));q.lineTo(X(x-3),Y(y));q.lineTo(X(x+5),Y(y+7));c.drawPath(q,stroke);break;
+                case IC_PLUS:c.drawLine(X(x-7),Y(y),X(x+7),Y(y),stroke);c.drawLine(X(x),Y(y-7),X(x),Y(y+7),stroke);break;
+                case IC_CHEVRON:q.moveTo(X(x-3),Y(y-4));q.lineTo(X(x+2),Y(y));q.lineTo(X(x-3),Y(y+4));c.drawPath(q,stroke);break;
+            }
+            stroke.setStyle(Paint.Style.STROKE);
+        }
+
+        @Override public boolean onTouchEvent(MotionEvent e){ if(e.getAction()!=MotionEvent.ACTION_UP)return true; float s=scale();float x=(e.getX()-(getWidth()-390*s)*.5f)/s;float y=e.getY()/s;
+            if(drawerProgress>.55f){ if(x<300){handleDrawer(y);}else{drawerTarget=0;drawerOpen=false;} return true; }
+            if(y>778){ if(x<82) select(HOME); else if(x<156) select(RUNS); else if(x<230) select(ARTIFACTS); else if(x<304) select(TOOLS); else select(PROFILE); return true; }
+            if(page==HOME){ if(y<78&&x<78){openDrawer();return true;} if(y<78&&x>340){select(PROFILE);return true;} if(y>=650&&y<780){select(RUNS);return true;} if(y>=456&&y<540){if(x<98)select(RUNS);else if(x<190)select(TOOLS);else if(x<282)select(TOOLS);else select(ARTIFACTS);return true;} }
+            else { if(y<72&&x<60){select(HOME);return true;} if(y<72&&x>325){select(PROFILE);return true;} }
+            if(page==RUNS&&y>=160&&y<260){select(DETAILS);return true;} if(page==RUNS&&y>=295&&y<640){if(y<375)select(DETAILS);else if(y>465)select(COMPLETED);else select(DETAILS);return true;}
+            if(page==DETAILS&&y>=575&&y<610){select(ARTIFACTS);return true;} if(page==DETAILS&&y>=520&&y<575){select(COMPLETED);return true;}
+            if(page==ARTIFACTS&&y>=565&&y<610){toast("Artifact opening is not connected in this build");return true;} if(page==TOOLS&&y>=106&&y<166){paused=!paused;invalidate();return true;} if(page==TOOLS&&y>=180&&y<330){select(y<250?DETAILS:ARTIFACTS);return true;}
+            if(page==PROFILE&&y>=520&&y<585){if(x<185)select(SETTINGS);else toast("Sign out is not connected in this build");return true;} if(page==SETTINGS&&y>=200&&y<255){localNotifications=!localNotifications;invalidate();return true;} if(page==VOICE&&y>=350&&y<405){toast("Voice input is not connected in this build");return true;} if(page==COMPLETED&&y>=535&&y<590){if(x<190)select(ARTIFACTS);else select(HOME);return true;} return true; }
+
+        private void handleDrawer(float y){ if(y>=82&&y<132)select(HOME); else if(y<184)select(RUNS); else if(y<236)select(ARTIFACTS); else if(y<288)select(TOOLS); else if(y<340)select(VOICE); else if(y<392)select(PROFILE); else if(y>=438&&y<500)select(SETTINGS); else {drawerTarget=0;drawerOpen=false;} }
+        private void openDrawer(){drawerOpen=true;drawerTarget=1;hideComposer();invalidate();}
+        private void select(int target){page=target;drawerOpen=false;drawerTarget=0;if(target==HOME)showComposer();else hideComposer();invalidate();}
     }
-
-    private int HOME_GOLD() { return Color.rgb(221, 194, 143); }
 }
