@@ -28,17 +28,22 @@ grep -Fq 'android:name=".MainActivity"' "$manifest" || fail "launcher activity c
 grep -Fq 'android:exported="true"' "$manifest" || fail "launcher activity export contract changed"
 grep -Fq 'android:usesCleartextTraffic="false"' "$manifest" || fail "cleartext traffic contract changed"
 
-# The approved preview is the immutable UI source for this implementation pass.
+# The approved preview is locked to its exact Git blob identity.
 preview="$module/src/main/assets/veytrix_preview.html"
 if [[ -f "$preview" ]]; then
-  actual="$(sha256sum "$preview" | awk '{print $1}')"
   expected='4c256667400e0f0599f2c9322ee482a0bea8eb39'
-  [[ "$actual" == "$expected" ]] || fail "approved preview hash mismatch: $actual"
+  actual="$(git -C "$root" hash-object "$preview")"
+  [[ "$actual" == "$expected" ]] || fail "approved preview Git blob hash mismatch: $actual"
 fi
 
-# Prevent historical NexusNova Android identity from returning to the VEYTRIX module.
-if grep -RniE 'nexusnova|com\.nexusnova\.' "$module/src" "$build_gradle" "$manifest" 2>/dev/null; then
-  fail "historical NexusNova identity detected in Android module"
+# The approved immutable preview may contain mock repository names. Exclude only
+# that fixture from identity scanning; implementation sources must stay VEYTRIX-only.
+if grep -RniE 'nexusnova|com\.nexusnova\.' "$module/src" --exclude='veytrix_preview.html' 2>/dev/null; then
+  fail "historical NexusNova identity detected in Android implementation"
+fi
+
+if grep -niE 'nexusnova|com\.nexusnova\.' "$build_gradle" "$manifest" 2>/dev/null; then
+  fail "historical NexusNova identity detected in Android build identity"
 fi
 
 echo 'VEYTRIX Android contract: PASS'
