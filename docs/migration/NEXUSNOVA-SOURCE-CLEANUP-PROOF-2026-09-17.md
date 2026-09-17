@@ -57,4 +57,4 @@ The NexusNova product application, Firebase/web assets, travel/product workflows
 
 ## Separate VEYTRIX follow-up
 
-The active VEYTRIX implementation branch still contains two historical NexusNova references inside `.github/workflows/veytrix-autopilot.yml` (the default target repository and the old `workflow_run` workflow name). Those are configuration-cleanup items in VEYTRIX and are not evidence that NexusNova product code remains in the old repository.
+The previously stale NexusNova repository/workflow references in the active VEYTRIX implementation workflow were corrected in VEYTRIX commit `47d1c49a01bab4f0508d5a3413def25f8cdff2ff`. The Android contract verifier also deliberately ignores the approved immutable preview fixture when checking for historical repository identity; the preview itself is locked by its approved Git blob hash.
