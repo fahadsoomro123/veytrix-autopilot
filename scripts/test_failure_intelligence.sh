@@ -15,10 +15,10 @@ cat > "$TMP/credential.log" <<'EOF'
 Authentication failed: signing key not available
 EOF
 cat > "$TMP/signing-secret-empty.log" <<'EOF'
-test -n "${VEYTRIX_KEYSTORE_BASE64:-}"
-test -n "${VEYTRIX_KEYSTORE_PASSWORD:-}"
-test -n "${VEYTRIX_KEY_ALIAS:-}"
-test -n "${VEYTRIX_KEY_PASSWORD:-}"
+VEYTRIX_KEYSTORE_BASE64:
+VEYTRIX_KEYSTORE_PASSWORD:
+VEYTRIX_KEY_ALIAS:
+VEYTRIX_KEY_PASSWORD:
 EOF
 
 expect_class() {
