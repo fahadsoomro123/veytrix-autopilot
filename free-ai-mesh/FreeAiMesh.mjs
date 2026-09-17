@@ -1,11 +1,20 @@
+const DEFAULT_MAX_DISCOVERED = 100_000;
+
 export class FreeAiMesh {
-  constructor({ adapter, maxAttempts = 10, cooldownMs = 60_000 } = {}) {
+  constructor({
+    adapter,
+    maxAttempts = 10,
+    cooldownMs = 60_000,
+    maxDiscovered = DEFAULT_MAX_DISCOVERED,
+  } = {}) {
     if (!adapter || typeof adapter.chat !== 'function') {
       throw new TypeError('FreeAiMesh requires an adapter.chat function');
     }
+
     this.adapter = adapter;
-    this.maxAttempts = Math.max(1, maxAttempts);
+    this.maxAttempts = Math.max(1, Math.min(maxAttempts, maxDiscovered));
     this.cooldownMs = Math.max(1, cooldownMs);
+    this.maxDiscovered = Math.max(1, Math.min(maxDiscovered, DEFAULT_MAX_DISCOVERED));
     this.health = new Map();
     this.models = [];
   }
@@ -14,7 +23,17 @@ export class FreeAiMesh {
     const models = typeof this.adapter.listModels === 'function'
       ? await this.adapter.listModels()
       : [];
-    this.models = models.filter(Boolean).slice(0, 25);
+
+    const seen = new Set();
+    this.models = models
+      .filter(model => model && typeof model.id === 'string' && model.id.trim())
+      .filter(model => {
+        if (seen.has(model.id)) return false;
+        seen.add(model.id);
+        return true;
+      })
+      .slice(0, this.maxDiscovered);
+
     if (this.models.length === 0) throw new Error('No Free AI lanes discovered');
     return this.models;
   }
@@ -22,7 +41,7 @@ export class FreeAiMesh {
   score(model, index) {
     const h = this.health.get(model.id) || { successes: 0, failures: 0, cooldownUntil: 0 };
     if (h.cooldownUntil > Date.now()) return Number.NEGATIVE_INFINITY;
-    return (h.successes * 5) - (h.failures * 10) - index * 0.01;
+    return (h.successes * 5) - (h.failures * 10) - index * 0.000001;
   }
 
   route() {
@@ -49,6 +68,7 @@ export class FreeAiMesh {
 
   async ask(task) {
     if (!this.models.length) await this.discover();
+
     const candidates = this.route();
     const attempts = [];
 
@@ -56,18 +76,30 @@ export class FreeAiMesh {
       try {
         const started = Date.now();
         const result = await this.adapter.chat(model.id, { task });
-        const text = String(result?.text ?? result?.message?.content ?? result?.content ?? '').trim();
+        const text = String(
+          result?.text ?? result?.message?.content ?? result?.content ?? '',
+        ).trim();
+
         if (!text) throw new Error('empty response');
+
         this.recordSuccess(model.id);
-        attempts.push({ model: model.id, status: 'success', latencyMs: Date.now() - started });
+        attempts.push({
+          model: model.id,
+          status: 'success',
+          latencyMs: Date.now() - started,
+        });
         return { text, model: model.id, attempts };
       } catch (error) {
         this.recordFailure(model.id, error?.retryable !== false);
-        attempts.push({ model: model.id, status: 'failed', error: String(error?.message ?? error) });
+        attempts.push({
+          model: model.id,
+          status: 'failed',
+          error: String(error?.message ?? error),
+        });
       }
     }
 
-    const error = new Error('All Free AI lanes failed');
+    const error = new Error(`All ${candidates.length} eligible Free AI lanes exhausted`);
     error.attempts = attempts;
     throw error;
   }
