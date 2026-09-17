@@ -1,0 +1,44 @@
+name: Veytrix Free AI Mesh Canary
+
+on:
+  push:
+    branches:
+      - 'test/free-ai-mesh-canary'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  free-ai-mesh-failover:
+    name: 25-lane failure and failover test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout canary revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run controlled provider-failure canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          node free-ai-mesh/free_ai_mesh_canary.mjs
+
+      - name: Assert canary proof markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node free-ai-mesh/free_ai_mesh_canary.mjs | tee /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'FREE_AI_MESH_CANARY=PASS' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'discovered_lanes=25' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'first_attempt_failures=7' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'successful_fallback=free-lane-08' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'second_request_preferred=free-lane-08' /tmp/free-ai-mesh-canary.log
