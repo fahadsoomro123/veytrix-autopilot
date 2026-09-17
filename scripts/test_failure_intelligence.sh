@@ -17,6 +17,9 @@ EOF
 cat > "$TMP/credential.log" <<'EOF'
 Authentication failed: signing key not available
 EOF
+cat > "$TMP/credit-exhausted.log" <<'EOF'
+stream disconnected before completion: You have no credits remaining. Add credits to continue using the API.
+EOF
 cat > "$TMP/signing-secret-empty.log" <<'EOF'
 VEYTRIX_KEYSTORE_BASE64:
 VEYTRIX_KEYSTORE_PASSWORD:
@@ -48,12 +51,14 @@ fingerprint_for() {
 expect_class "$TMP/transient.log" transient
 expect_class "$TMP/build.log" code-or-build
 expect_class "$TMP/credential.log" credential-or-permission
+expect_class "$TMP/credit-exhausted.log" external-service
 expect_class "$TMP/signing-secret-empty.log" credential-or-permission
 expect_class "$TMP/signing-secret-empty-variant.log" credential-or-permission
 
 expect_reason "$TMP/transient.log" known-transient-infrastructure-signature
 expect_reason "$TMP/build.log" source-or-build-failure-signature
 expect_reason "$TMP/credential.log" external-credential-or-permission-blocker
+expect_reason "$TMP/credit-exhausted.log" external-service-or-quota-blocker
 expect_reason "$TMP/signing-secret-empty.log" veytrix-signing-credential-signal
 expect_reason "$TMP/signing-secret-empty-variant.log" veytrix-signing-credential-signal
 
