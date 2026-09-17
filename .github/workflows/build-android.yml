@@ -1,0 +1,19 @@
+# Default-branch workflow registration for the VEYTRIX Android pipeline.
+# The implementation branch supplies the real build jobs. Keeping this
+# workflow definition on the default branch lets workflow_run listeners in the
+# control plane resolve the Android workflow by name without moving the
+# unfinished Android implementation onto main.
+name: Build Veytrix Autopilot Android
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Confirm Android workflow registration
+        run: echo 'Build Veytrix Autopilot Android is registered on the default branch.'
