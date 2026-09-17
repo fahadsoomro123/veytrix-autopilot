@@ -183,6 +183,9 @@ jobs:
               echo 'No generic deterministic verifier matched this project; continuing with diff checks.'
             }
           fi
+          if [ -d android/autopilot ]; then
+            bash ../.veytrix-core/scripts/verify_veytrix_android_contract.sh .
+          fi
 
       - name: Publish verified repair with stale-HEAD protection
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
