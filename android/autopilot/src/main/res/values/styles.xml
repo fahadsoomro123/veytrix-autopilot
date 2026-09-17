@@ -2,10 +2,10 @@
 <resources>
     <style name="Theme.VeytrixAutopilot" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:windowBackground">#0B0B0A</item>
-        <item name="android:colorAccent">#D8BD87</item>
-        <item name="android:windowLightStatusBar">false</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowBackground">#FFFFFF</item>
+        <item name="android:colorAccent">#3784FF</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#FFFFFF</item>
+        <item name="android:statusBarColor">#FFFFFF</item>
     </style>
 </resources>
