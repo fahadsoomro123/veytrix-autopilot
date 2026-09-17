@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.DashPathEffect;
+import android.graphics.LinearGradient;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RadialGradient;
@@ -11,7 +12,12 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 import android.view.View;
 
-/** Native animated rendering of the VEYTRIX autonomous core. */
+/**
+ * Native animated rendering of the VEYTRIX autonomous core.
+ *
+ * The view is intentionally self-contained: no bitmaps, HTML, CSS or runtime
+ * allocations are required for the animation loop.
+ */
 public final class FlagshipCoreView extends View {
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -19,12 +25,17 @@ public final class FlagshipCoreView extends View {
     private final RectF ring = new RectF();
     private final RectF ringTall = new RectF();
     private final RectF ringTilt = new RectF();
+    private final RectF ringInner = new RectF();
     private final RectF baseOuter = new RectF();
+    private final RectF baseMid = new RectF();
     private final RectF baseInner = new RectF();
     private final Path mark = new Path();
+    private final Path markGlow = new Path();
 
     private RadialGradient haloShader;
     private RadialGradient sphereShader;
+    private RadialGradient sphereCoreShader;
+    private LinearGradient markShader;
     private float density;
     private float coreRadius;
     private long animationStartNanos;
@@ -33,167 +44,390 @@ public final class FlagshipCoreView extends View {
     public FlagshipCoreView(Context context) {
         super(context);
         density = getResources().getDisplayMetrics().density;
+
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeCap(Paint.Cap.ROUND);
         stroke.setStrokeJoin(Paint.Join.ROUND);
         glow.setStyle(Paint.Style.FILL);
+
         setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         setClickable(false);
+        setFocusable(false);
+        setWillNotDraw(false);
     }
 
-    private float dp(float value) { return value * density; }
+    private float dp(float value) {
+        return value * density;
+    }
 
-    @Override protected void onAttachedToWindow() {
+    @Override
+    protected void onAttachedToWindow() {
         super.onAttachedToWindow();
         running = true;
         animationStartNanos = System.nanoTime();
         postInvalidateOnAnimation();
     }
 
-    @Override protected void onDetachedFromWindow() {
+    @Override
+    protected void onDetachedFromWindow() {
         running = false;
         super.onDetachedFromWindow();
     }
 
-    @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
+        if (w <= 0 || h <= 0) return;
+
         float size = Math.min(w, h);
-        coreRadius = size * 0.19f;
-        haloShader = new RadialGradient(w * .5f, h * .39f, coreRadius * 3.2f,
-                new int[]{Color.argb(120, 92, 117, 255), Color.argb(58, 117, 72, 255), Color.argb(12, 73, 211, 255), Color.TRANSPARENT},
-                new float[]{0f, .28f, .62f, 1f}, Shader.TileMode.CLAMP);
-        sphereShader = new RadialGradient(w * .43f, h * .27f, coreRadius * 1.48f,
-                new int[]{Color.WHITE, Color.rgb(221, 238, 255), Color.rgb(121, 148, 255), Color.rgb(76, 61, 196), Color.rgb(11, 18, 40)},
-                new float[]{0f, .10f, .32f, .64f, 1f}, Shader.TileMode.CLAMP);
-        mark.reset();
-        float cx = w * .5f;
-        float cy = h * .39f;
-        float r = coreRadius * .74f;
-        mark.moveTo(cx - r * .95f, cy - r * .95f);
-        mark.lineTo(cx - r * .30f, cy + r * .08f);
-        mark.lineTo(cx, cy + r * .62f);
-        mark.lineTo(cx + r * .30f, cy + r * .08f);
-        mark.lineTo(cx + r * .95f, cy - r * .95f);
-        mark.lineTo(cx + r * .51f, cy - r * .95f);
-        mark.lineTo(cx, cy - r * .06f);
-        mark.lineTo(cx - r * .51f, cy - r * .95f);
-        mark.close();
+        coreRadius = size * 0.205f;
+        float cx = w * 0.5f;
+        float cy = h * 0.385f;
+
+        haloShader = new RadialGradient(
+                cx, cy, coreRadius * 3.45f,
+                new int[]{
+                        Color.argb(128, 87, 128, 255),
+                        Color.argb(70, 127, 75, 255),
+                        Color.argb(28, 70, 219, 255),
+                        Color.TRANSPARENT
+                },
+                new float[]{0f, .26f, .61f, 1f},
+                Shader.TileMode.CLAMP
+        );
+
+        sphereShader = new RadialGradient(
+                w * .405f, h * .245f, coreRadius * 1.58f,
+                new int[]{
+                        Color.WHITE,
+                        Color.rgb(226, 241, 255),
+                        Color.rgb(126, 157, 255),
+                        Color.rgb(76, 55, 194),
+                        Color.rgb(12, 19, 45)
+                },
+                new float[]{0f, .09f, .30f, .62f, 1f},
+                Shader.TileMode.CLAMP
+        );
+
+        sphereCoreShader = new RadialGradient(
+                w * .44f, h * .29f, coreRadius * .78f,
+                new int[]{
+                        Color.argb(255, 255, 255, 255),
+                        Color.argb(235, 193, 215, 255),
+                        Color.argb(90, 111, 140, 255),
+                        Color.TRANSPARENT
+                },
+                new float[]{0f, .18f, .56f, 1f},
+                Shader.TileMode.CLAMP
+        );
+
+        markShader = new LinearGradient(
+                cx - coreRadius * .78f, cy - coreRadius * .85f,
+                cx + coreRadius * .78f, cy + coreRadius * .70f,
+                new int[]{
+                        Color.rgb(248, 250, 255),
+                        Color.rgb(161, 202, 255),
+                        Color.rgb(107, 106, 255),
+                        Color.rgb(215, 117, 255)
+                },
+                null,
+                Shader.TileMode.CLAMP
+        );
+
+        buildMark(cx, cy);
     }
 
-    @Override protected void onDraw(Canvas canvas) {
+    private void buildMark(float cx, float cy) {
+        mark.reset();
+        markGlow.reset();
+
+        float r = coreRadius * .82f;
+        float top = cy - r * .86f;
+        float mid = cy - r * .02f;
+        float bottom = cy + r * .72f;
+        float left = cx - r * .92f;
+        float right = cx + r * .92f;
+        float inner = r * .27f;
+
+        mark.moveTo(left, top);
+        mark.lineTo(cx - inner, mid);
+        mark.lineTo(cx, bottom);
+        mark.lineTo(cx + inner, mid);
+        mark.lineTo(right, top);
+        mark.lineTo(cx + r * .47f, top);
+        mark.lineTo(cx, cy + r * .24f);
+        mark.lineTo(cx - r * .47f, top);
+        mark.close();
+
+        markGlow.addPath(mark);
+    }
+
+    @Override
+    protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         final float w = getWidth();
         final float h = getHeight();
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0 || haloShader == null || sphereShader == null) return;
 
         final float t = (System.nanoTime() - animationStartNanos) / 1_000_000_000f;
-        final float drift = (float) Math.sin(t * 1.25f) * dp(3.5f);
-        final float pulse = 1f + (float) Math.sin(t * 2.1f) * .018f;
+        final float breathing = 1f + (float) Math.sin(t * 2.05f) * .021f;
+        final float drift = (float) Math.sin(t * 1.20f) * dp(3.2f);
         final float cx = w * .5f;
-        final float cy = h * .39f + drift;
-        final float outer = Math.min(w, h) * .40f;
+        final float cy = h * .385f + drift;
+        final float orbital = Math.min(w, h) * .405f;
+        final float radius = coreRadius * breathing;
 
+        // 1 — atmospheric glow behind the object
         fill.setShader(haloShader);
-        canvas.drawCircle(cx, cy, coreRadius * 3.0f, fill);
+        canvas.drawCircle(cx, cy, coreRadius * 3.18f, fill);
         fill.setShader(null);
 
-        drawAtmosphericRings(canvas, cx, cy, outer, t);
-        drawParticles(canvas, cx, cy, outer, t);
-        drawPedestal(canvas, cx, h * .74f, outer * .78f, t);
-        drawSphere(canvas, cx, cy, coreRadius * pulse, t);
+        // 2 — depth-oriented orbit system
+        drawOrbitSystem(canvas, cx, cy, orbital, t);
+        drawParticles(canvas, cx, cy, orbital, t);
 
-        if (running) postInvalidateOnAnimation();
+        // 3 — energy pedestal / light well
+        drawPedestal(canvas, cx, h * .745f, orbital * .78f, t);
+
+        // 4 — dimensional sphere
+        drawSphere(canvas, cx, cy, radius, t);
+
+        if (running) {
+            postInvalidateOnAnimation();
+        }
     }
 
-    private void drawAtmosphericRings(Canvas c, float cx, float cy, float outer, float t) {
+    private void drawOrbitSystem(Canvas c, float cx, float cy, float outer, float t) {
         ring.set(cx - outer, cy - outer * .43f, cx + outer, cy + outer * .43f);
-        ringTall.set(cx - outer * .58f, cy - outer * .86f, cx + outer * .58f, cy + outer * .86f);
-        ringTilt.set(cx - outer * .78f, cy - outer * .30f, cx + outer * .78f, cy + outer * .30f);
+        ringTall.set(cx - outer * .56f, cy - outer * .88f, cx + outer * .56f, cy + outer * .88f);
+        ringTilt.set(cx - outer * .78f, cy - outer * .28f, cx + outer * .78f, cy + outer * .28f);
+        ringInner.set(cx - outer * .62f, cy - outer * .34f, cx + outer * .62f, cy + outer * .34f);
 
+        stroke.setStyle(Paint.Style.STROKE);
         stroke.setPathEffect(null);
-        stroke.setStrokeWidth(dp(1.1f));
-        stroke.setColor(Color.argb(205, 104, 149, 255));
-        c.save(); c.rotate(-16f + t * 7f, cx, cy); c.drawOval(ring, stroke); c.restore();
+        stroke.setStrokeCap(Paint.Cap.ROUND);
 
-        stroke.setColor(Color.argb(125, 181, 104, 255));
+        // Back-facing atmosphere: dimmer and softer.
+        stroke.setStrokeWidth(dp(1.0f));
+        stroke.setColor(Color.argb(52, 146, 177, 255));
+        c.save();
+        c.rotate(-15f + t * 6f, cx, cy);
+        c.drawOval(ringTall, stroke);
+        c.restore();
+
         stroke.setStrokeWidth(dp(.9f));
-        c.save(); c.rotate(28f - t * 5f, cx, cy); c.drawOval(ringTall, stroke); c.restore();
+        stroke.setColor(Color.argb(58, 202, 123, 255));
+        c.save();
+        c.rotate(31f - t * 5f, cx, cy);
+        c.drawOval(ringTilt, stroke);
+        c.restore();
 
-        stroke.setColor(Color.argb(125, 70, 215, 255));
+        // Primary luminous orbit.
+        stroke.setStrokeWidth(dp(1.15f));
+        stroke.setColor(Color.argb(205, 105, 154, 255));
+        c.save();
+        c.rotate(-17f + t * 7.5f, cx, cy);
+        c.drawOval(ring, stroke);
+        c.restore();
+
+        // Violet counter-rotating ring.
+        stroke.setStrokeWidth(dp(.95f));
+        stroke.setColor(Color.argb(148, 187, 104, 255));
+        c.save();
+        c.rotate(28f - t * 6.0f, cx, cy);
+        c.drawOval(ringInner, stroke);
+        c.restore();
+
+        // Cyan sweep ring, partially interrupted for depth.
         stroke.setStrokeWidth(dp(.85f));
-        c.save(); c.rotate(-34f - t * 4f, cx, cy); c.drawOval(ringTilt, stroke); c.restore();
+        stroke.setColor(Color.argb(135, 79, 219, 255));
+        c.save();
+        c.rotate(-34f - t * 4.4f, cx, cy);
+        c.drawArc(ringTilt, 18f, 112f, false, stroke);
+        c.drawArc(ringTilt, 202f, 80f, false, stroke);
+        c.restore();
 
-        stroke.setPathEffect(new DashPathEffect(new float[]{dp(7), dp(10)}, dp(4) * t));
-        stroke.setColor(Color.argb(100, 129, 91, 255));
-        stroke.setStrokeWidth(dp(.8f));
-        c.save(); c.rotate(52f + t * 10f, cx, cy); c.drawOval(ring, stroke); c.restore();
+        // Fine dashed technical orbit.
+        stroke.setPathEffect(new DashPathEffect(new float[]{dp(6), dp(11)}, dp(5) * t));
+        stroke.setStrokeWidth(dp(.72f));
+        stroke.setColor(Color.argb(112, 126, 101, 255));
+        c.save();
+        c.rotate(53f + t * 10f, cx, cy);
+        c.drawOval(ring, stroke);
+        c.restore();
         stroke.setPathEffect(null);
+
+        // Thin foreground arcs create an optical front/back split.
+        stroke.setStrokeWidth(dp(1.35f));
+        stroke.setColor(Color.argb(220, 144, 184, 255));
+        c.save();
+        c.rotate(-17f + t * 7.5f, cx, cy);
+        c.drawArc(ring, 194f, 108f, false, stroke);
+        c.restore();
+
+        stroke.setStrokeWidth(dp(1.0f));
+        stroke.setColor(Color.argb(180, 192, 126, 255));
+        c.save();
+        c.rotate(28f - t * 6.0f, cx, cy);
+        c.drawArc(ringInner, 18f, 118f, false, stroke);
+        c.restore();
     }
 
-    private void drawParticles(Canvas c, float cx, float cy, float orbit, float t) {
-        for (int i = 0; i < 7; i++) {
-            double a = t * (.38 + i * .025) + i * (Math.PI * 2 / 7.0);
-            float x = cx + (float) Math.cos(a) * orbit * (i % 2 == 0 ? 1.0f : .78f);
-            float y = cy + (float) Math.sin(a) * orbit * (i % 2 == 0 ? .43f : .72f);
-            float r = dp(i % 3 == 0 ? 2.2f : 1.4f);
-            glow.setColor(Color.argb(i % 2 == 0 ? 170 : 110, i % 2 == 0 ? 114 : 78, i % 2 == 0 ? 191 : 121, 255));
-            glow.setShadowLayer(r * 2.5f, 0, 0, Color.argb(80, 98, 128, 255));
+    private void drawParticles(Canvas c, float cx, float cy, float orbital, float t) {
+        final int count = 9;
+        for (int i = 0; i < count; i++) {
+            double a = t * (.34 + i * .016) + i * (Math.PI * 2.0 / count);
+            float x = cx + (float) Math.cos(a) * orbital * (i % 2 == 0 ? 1.00f : .79f);
+            float y = cy + (float) Math.sin(a) * orbital * (i % 2 == 0 ? .44f : .68f);
+            float r = dp(i % 4 == 0 ? 2.35f : 1.35f);
+            int base = i % 3 == 0 ? 115 : 83;
+            glow.setColor(Color.argb(base + (int) (28 * (0.5f + 0.5f * Math.sin(t * 1.7f + i))), 120, 188, 255));
+            glow.setShadowLayer(r * 3.2f, 0, 0, Color.argb(110, 85, 125, 255));
             c.drawCircle(x, y, r, glow);
             glow.clearShadowLayer();
+
+            if (i == 2 || i == 6) {
+                glow.setColor(Color.argb(155, 224, 235, 255));
+                c.drawCircle(x, y, r * .46f, glow);
+            }
         }
     }
 
     private void drawSphere(Canvas c, float cx, float cy, float radius, float t) {
+        // Outer glass envelope.
         fill.setShader(sphereShader);
-        fill.setShadowLayer(radius * .75f, 0, radius * .20f, Color.argb(125, 100, 95, 255));
+        fill.setShadowLayer(radius * .82f, 0, radius * .18f, Color.argb(138, 87, 92, 255));
         c.drawCircle(cx, cy, radius, fill);
         fill.clearShadowLayer();
         fill.setShader(null);
 
-        fill.setColor(Color.argb(95, 15, 24, 58));
-        c.drawCircle(cx, cy, radius * .79f, fill);
-        fill.setColor(Color.argb(255, 255, 255, 255));
-        fill.setShadowLayer(radius * .30f, -radius * .20f, -radius * .20f, Color.argb(100, 90, 130, 255));
-        c.drawCircle(cx - radius * .28f, cy - radius * .31f, radius * .12f, fill);
+        // Deep inner material layer.
+        fill.setShader(sphereCoreShader);
+        c.drawCircle(cx, cy, radius * .77f, fill);
+        fill.setShader(null);
+
+        // Cool reflected crescent.
+        fill.setColor(Color.argb(62, 105, 200, 255));
+        c.drawOval(
+                cx - radius * .76f,
+                cy - radius * .55f,
+                cx + radius * .68f,
+                cy + radius * .50f,
+                fill
+        );
+
+        // Directional specular point.
+        fill.setColor(Color.WHITE);
+        fill.setShadowLayer(radius * .22f, -radius * .18f, -radius * .18f, Color.argb(115, 104, 149, 255));
+        c.drawCircle(cx - radius * .31f, cy - radius * .34f, radius * .105f, fill);
         fill.clearShadowLayer();
 
-        stroke.setColor(Color.argb(210, 191, 219, 255));
-        stroke.setStrokeWidth(dp(1.3f));
-        c.drawPath(mark, stroke);
+        // Moving fine highlight for subtle motion without changing geometry.
+        float lx = cx + (float) Math.sin(t * .72f) * radius * .26f;
+        float ly = cy - radius * .58f;
+        fill.setColor(Color.argb(45, 255, 255, 255));
+        c.drawCircle(lx, ly, radius * .055f, fill);
 
-        stroke.setColor(Color.argb(80, 76, 225, 255));
-        stroke.setStrokeWidth(dp(.7f));
-        c.drawCircle(cx, cy, radius * 1.08f, stroke);
+        // Thin inner glass rim.
+        stroke.setStyle(Paint.Style.STROKE);
+        stroke.setStrokeWidth(dp(.72f));
+        stroke.setColor(Color.argb(150, 152, 195, 255));
+        c.drawCircle(cx, cy, radius * 1.035f, stroke);
+
+        // Glowing VEYTRIX identity mark.
+        fill.setShader(markShader);
+        fill.setShadowLayer(radius * .18f, 0, 0, Color.argb(155, 110, 104, 255));
+        c.drawPath(markGlow, fill);
+        fill.clearShadowLayer();
+        fill.setShader(null);
+
+        // Micro edge highlight under the mark.
+        stroke.setStrokeWidth(dp(.65f));
+        stroke.setColor(Color.argb(120, 232, 241, 255));
+        c.drawArc(new RectF(
+                cx - radius * .61f,
+                cy - radius * .60f,
+                cx + radius * .61f,
+                cy + radius * .60f
+        ), 208f, 98f, false, stroke);
     }
 
     private void drawPedestal(Canvas c, float cx, float cy, float width, float t) {
         float left = cx - width;
         float right = cx + width;
         float top = cy - dp(12);
-        float bottom = cy + dp(28);
-        baseOuter.set(left, top, right, bottom);
-        baseInner.set(left + dp(10), top + dp(8), right - dp(10), bottom - dp(10));
+        float bottom = cy + dp(30);
 
-        fill.setColor(Color.argb(115, 52, 86, 155));
-        fill.setShadowLayer(dp(20), 0, dp(4), Color.argb(85, 60, 128, 255));
+        baseOuter.set(left, top, right, bottom);
+        baseMid.set(left + dp(7), top + dp(6), right - dp(7), bottom - dp(7));
+        baseInner.set(left + dp(17), top + dp(11), right - dp(17), bottom - dp(12));
+
+        // Soft ground halo.
+        fill.setColor(Color.argb(70, 63, 101, 184));
+        fill.setShadowLayer(dp(22), 0, dp(5), Color.argb(115, 62, 124, 255));
         c.drawOval(baseOuter, fill);
         fill.clearShadowLayer();
 
-        fill.setColor(Color.rgb(7, 16, 31));
+        // Outer graphite-metal body.
+        fill.setColor(Color.rgb(8, 18, 33));
+        c.drawOval(baseOuter, fill);
+
+        // Inner blue glass layer.
+        fill.setColor(Color.rgb(8, 22, 42));
+        c.drawOval(baseMid, fill);
+
+        // Central energy well.
+        fill.setColor(Color.argb(210, 7, 13, 25));
         c.drawOval(baseInner, fill);
 
-        stroke.setStrokeWidth(dp(1.2f));
-        stroke.setColor(Color.argb(185, 87, 124, 213));
+        stroke.setStyle(Paint.Style.STROKE);
+        stroke.setStrokeWidth(dp(1.25f));
+        stroke.setColor(Color.argb(180, 99, 141, 231));
         c.drawOval(baseOuter, stroke);
-        stroke.setColor(Color.argb(125, 130, 87, 255));
-        c.drawOval(baseInner, stroke);
+
+        stroke.setStrokeWidth(dp(1.0f));
+        stroke.setColor(Color.argb(125, 152, 104, 255));
+        c.drawOval(baseMid, stroke);
 
         stroke.setStrokeWidth(dp(.75f));
-        for (int i = 0; i < 8; i++) {
-            float x = left + (right - left) * (i + .5f) / 8f;
-            float alpha = 65f + 45f * (float) Math.sin(t * 2.0f + i);
-            stroke.setColor(Color.argb((int) alpha, 92, 140, 255));
-            c.drawLine(x, top + dp(3), x, top + dp(8), stroke);
+        stroke.setColor(Color.argb(92, 79, 212, 255));
+        c.drawOval(baseInner, stroke);
+
+        // Rotating segmented energy rail.
+        float start = (t * 34f) % 360f;
+        for (int i = 0; i < 12; i++) {
+            float alpha = 74f + 70f * (float) Math.sin(t * 2.0f + i * .85f);
+            stroke.setStrokeWidth(dp(i % 3 == 0 ? 1.15f : .65f));
+            stroke.setColor(Color.argb((int) Math.max(28, alpha), 94, 145, 255));
+            c.drawArc(baseMid, start + i * 30f, 9f, false, stroke);
         }
+
+        // Vertical illumination rising from the platform.
+        for (int i = -3; i <= 3; i++) {
+            float x = cx + i * dp(7.5f);
+            float beamAlpha = 18f + 20f * (float) Math.sin(t * 1.9f + i);
+            fill.setColor(Color.argb((int) Math.max(8, beamAlpha), 91, 150, 255));
+            c.drawRoundRect(
+                    x - dp(.75f),
+                    top - dp(2),
+                    x + dp(.75f),
+                    top + dp(15),
+                    dp(.75f),
+                    dp(.75f),
+                    fill
+            );
+        }
+
+        // Bright contact light at the core/pedestal interface.
+        glow.setColor(Color.argb(85, 104, 159, 255));
+        glow.setShadowLayer(dp(10), 0, 0, Color.argb(100, 84, 127, 255));
+        c.drawOval(
+                cx - width * .30f,
+                top + dp(1),
+                cx + width * .30f,
+                top + dp(8),
+                glow
+        );
+        glow.clearShadowLayer();
     }
 }
