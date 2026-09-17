@@ -55,6 +55,6 @@ No NexusNova business/product code was moved into VEYTRIX. No signing secret, ke
 
 The NexusNova product application, Firebase/web assets, travel/product workflows, and unrelated CI material were not removed by these cleanup commits.
 
-## Separate VEYTRIX follow-up
+## VEYTRIX identity cleanup
 
-The previously stale NexusNova repository/workflow references in the active VEYTRIX implementation workflow were corrected in VEYTRIX commit `47d1c49a01bab4f0508d5a3413def25f8cdff2ff`. The Android contract verifier also deliberately ignores the approved immutable preview fixture when checking for historical repository identity; the preview itself is locked by its approved Git blob hash.
+The stale NexusNova repository/workflow references that were present in the active VEYTRIX implementation workflow were corrected in VEYTRIX commit `47d1c49a01bab4f0508d5a3413def25f8cdff2ff`. The duplicate legacy `veytrix-autopilot.yml` implementation-branch workflow was subsequently removed in commit `41a05315efc899d124ccbddb6b631c8656531ddc`, leaving the central `main` recovery controller as the recovery path. The Android contract verifier deliberately ignores the approved immutable preview fixture when checking for historical repository identity; the preview itself is locked by its approved Git blob hash.
