@@ -1,0 +1,48 @@
+name: Veytrix Fast Real Catalog Proof
+
+on:
+  push:
+    branches:
+      - 'test/free-ai-mesh-canary'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fast-real-catalog-proof:
+    name: Real HF 3M+ catalog and provider scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install scanner dependencies
+        run: python -m pip install --upgrade requests huggingface_hub
+
+      - name: Run fast real catalog proof
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: python scripts/fast_real_catalog_proof.py
+
+      - name: Print proof
+        run: cat fast-real-catalog-proof.txt
+
+      - name: Upload proof artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: veytrix-fast-real-catalog-proof
+          path: |
+            fast-real-catalog-proof.txt
+            fast-real-catalog-proof.json
+          if-no-files-found: error
+          retention-days: 30
