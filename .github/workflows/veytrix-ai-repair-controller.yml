@@ -8,6 +8,7 @@ on:
       - Veytrix Decision Engine Gate
       - Veytrix Free Gemini AI Gate
       - Veytrix Smart Autopilot Self-Test
+      - Veytrix Smart Autopilot
     types: [completed]
 
 permissions:
@@ -105,9 +106,9 @@ jobs:
           echo "Identical failure fingerprint repair count: $repair_count"
           if (( repair_count >= MAX_AUTOPILOT_REPAIRS )); then
             echo 'repair_allowed=false' >> "$GITHUB_OUTPUT"
-            exit 0
+          else
+            echo 'repair_allowed=true' >> "$GITHUB_OUTPUT"
           fi
-          echo 'repair_allowed=true' >> "$GITHUB_OUTPUT"
 
       - name: AI root-cause repair
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
@@ -131,11 +132,11 @@ jobs:
 
             Reasoning contract:
             1. Establish the failure chain from the failing step to the actual root cause.
-            2. Inspect only the relevant repository surfaces before editing.
+            2. Inspect only relevant repository surfaces before editing.
             3. Prefer deterministic/root-cause repair over retries or symptom suppression.
             4. Make the smallest production-quality change that fixes the root cause.
             5. Run narrow verification first, then the strongest relevant final verification.
-            6. Re-check that the fix does not alter approved-preview integrity, applicationId, version monotonicity, signing checks, security controls, or unrelated product behavior.
+            6. Re-check approved-preview integrity, applicationId, version monotonicity, signing checks, security controls, and unrelated product behavior.
             7. If evidence proves an external/credential/permission blocker, make no source change and report it.
 
             HARD SAFETY RULES:
