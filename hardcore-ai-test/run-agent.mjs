@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { FreeAiMesh } from '../../free-ai-mesh/FreeAiMesh.mjs';
+import { FreeAiMesh } from '../free-ai-mesh/FreeAiMesh.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const SOURCE = path.join(ROOT, 'src', 'scheduler.mjs');
