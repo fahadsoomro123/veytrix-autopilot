@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { FreeAiMesh } from './FreeAiMesh.mjs';
 
-const TARGET_LANES = 100_000;
+const TARGET_LANES = 3_000_000;
+const FAILURE_DEPTH = 100_000;
+
 const lanes = Array.from({ length: TARGET_LANES }, (_, i) => ({
   id: `free-lane-${i + 1}`,
   provider: ['puter', 'qwen', 'glm', 'kimi', 'mistral'][i % 5],
@@ -16,8 +18,9 @@ const adapter = {
     calls += 1;
     const laneNumber = Number(modelId.replace('free-lane-', ''));
 
-    // CONTROLLED OUTAGE: first 7 free lanes fail like quota/rate-limit events.
-    if (laneNumber <= 7) {
+    // HARDCORE CONTROLLED OUTAGE: first 100,000 lanes fail like
+    // quota/rate-limit/provider-unavailable events before lane 100,001 works.
+    if (laneNumber <= FAILURE_DEPTH) {
       const err = new Error(`synthetic provider rate-limit on ${modelId}`);
       err.retryable = true;
       throw err;
@@ -29,7 +32,7 @@ const adapter = {
 
 const mesh = new FreeAiMesh({
   adapter,
-  maxAttempts: 10,
+  maxAttempts: FAILURE_DEPTH + 1,
   cooldownMs: 1,
   maxDiscovered: TARGET_LANES,
 });
@@ -38,24 +41,37 @@ const discovered = await mesh.discover();
 assert.equal(
   discovered.length,
   TARGET_LANES,
-  'mesh must accept up to 100000 discovered lanes',
+  'mesh must accept up to 3,000,000 discovered lanes',
 );
 
 const result = await mesh.ask('repair an Android build failure');
 
-assert.equal(result.model, 'free-lane-8', 'router must fail over to lane 8 after seven outages');
-assert.equal(result.text, 'SUCCESS from free-lane-8');
-assert.equal(result.attempts.length, 8, 'router must prove the seven failures plus the successful fallback');
-assert.equal(calls, 8);
-assert.equal(result.attempts.filter(a => a.status === 'failed').length, 7);
+assert.equal(
+  result.model,
+  `free-lane-${FAILURE_DEPTH + 1}`,
+  'router must survive 100,000 consecutive provider failures',
+);
+assert.equal(result.text, `SUCCESS from free-lane-${FAILURE_DEPTH + 1}`);
+assert.equal(
+  result.attempts.length,
+  FAILURE_DEPTH + 1,
+  'router must prove deep sequential failover to the next healthy lane',
+);
+assert.equal(calls, FAILURE_DEPTH + 1);
+assert.equal(result.attempts.filter(a => a.status === 'failed').length, FAILURE_DEPTH);
 assert.equal(result.attempts.at(-1).status, 'success');
 
-// Second request: healthy lane 8 should now be preferred instead of restarting at lane 1.
+// Second request: the proven healthy lane should be preferred immediately.
 const second = await mesh.ask('reason about the build failure');
-assert.equal(second.model, 'free-lane-8', 'health scoring must prefer a recently successful lane');
+assert.equal(
+  second.model,
+  `free-lane-${FAILURE_DEPTH + 1}`,
+  'health scoring must prefer the recently successful lane',
+);
+assert.equal(second.attempts.length, 1);
 
-console.log('FREE_AI_MESH_100K_CANARY=PASS');
+console.log('FREE_AI_MESH_3M_HARDCORE_CANARY=PASS');
 console.log(`discovered_lanes=${discovered.length}`);
-console.log('first_attempt_failures=7');
+console.log(`consecutive_failures=${FAILURE_DEPTH}`);
 console.log(`successful_fallback=${result.model}`);
 console.log(`second_request_preferred=${second.model}`);
