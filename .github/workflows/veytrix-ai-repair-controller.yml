@@ -1,1 +1,130 @@
-placeholder
+name: Veytrix Autonomous AI Repair
+
+on:
+  workflow_run:
+    workflows:
+      - Build Veytrix Autopilot Android
+      - Veytrix AI Escalation Smoke
+      - Veytrix Decision Engine Gate
+      - Veytrix Free Gemini AI Gate
+      - Veytrix Smart Autopilot Self-Test
+    types: [completed]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: veytrix-ai-repair-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+env:
+  MAX_AUTOPILOT_REPAIRS: '3'
+
+jobs:
+  ai-repair:
+    if: >-
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.repository.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: ${{ github.event.workflow_run.id }}
+      HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+      HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+      FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Checkout failed revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.HEAD_SHA }}
+          fetch-depth: 50
+          persist-credentials: true
+
+      - name: Collect failure evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh run view "$RUN_ID" -R "$GITHUB_REPOSITORY" --log-failed > /tmp/veytrix-failure.log || true
+          echo "=== FAILED WORKFLOW: $FAILED_WORKFLOW ==="
+          cat /tmp/veytrix-failure.log
+
+      - name: Stop on configuration or credential blocker
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Eqi '(VEYTRIX_KEYSTORE_BASE64|VEYTRIX_KEYSTORE_PASSWORD|VEYTRIX_KEY_ALIAS|VEYTRIX_KEY_PASSWORD|OPENAI_API_KEY).*(:|=)[[:space:]]*$|secret.*not set|secret.*missing' /tmp/veytrix-failure.log; then
+            echo "A required secret/credential is missing. Autopilot will not fabricate credentials or weaken security."
+            exit 1
+          fi
+
+      - name: Enforce bounded repair chain
+        id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+          repair_count="$(git log --first-parent --format='%s' -n 20 "$HEAD_SHA" | awk '/\[veytrix-autopilot-repair\]/{n++; next} {if (n>0) exit} END{print n+0}')"
+          echo "Consecutive repair commits: $repair_count"
+          if (( repair_count >= MAX_AUTOPILOT_REPAIRS )); then
+            echo "repair_allowed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "repair_allowed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run Codex analysis and repair
+        if: steps.guard.outputs.repair_allowed == 'true'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          output-file: /tmp/veytrix-codex-result.txt
+          prompt: |
+            You are Veytrix Smart Autopilot. A CI workflow failed in repository fahadsoomro123/veytrix-autopilot.
+
+            Failed workflow: ${{ env.FAILED_WORKFLOW }}
+            Failed run: ${{ env.RUN_ID }}
+            Failed revision: ${{ env.HEAD_SHA }}
+            Target branch: ${{ env.HEAD_BRANCH }}
+
+            Read /tmp/veytrix-failure.log first. Then inspect the repository and determine the concrete root cause.
+            If and only if a safe source/configuration fix is possible, make the smallest deterministic repair.
+            Run the relevant tests/build/verification needed to prove the repair.
+
+            HARD RULES:
+            - Work only in fahadsoomro123/veytrix-autopilot.
+            - Never touch NexusNova or any unrelated project.
+            - Never read, print, expose, copy, or modify secrets or credentials.
+            - Never remove or weaken tests, security controls, signing checks, package identity checks, or approved-preview integrity checks just to obtain a green build.
+            - Never change applicationId com.veytrix.autopilot or downgrade versionCode/versionName.
+            - Never replace the approved preview with an approximation.
+            - If the root cause is a missing secret, external outage, permissions problem, or other blocker that source code cannot safely solve, make no change and explain the blocker.
+            - Do not perform unrelated cleanup or redesign.
+
+            Leave only the minimal verified repair in the working tree. Do not create an empty commit.
+
+      - name: Push verified repair
+        if: steps.guard.outputs.repair_allowed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "=== CODEX RESULT ==="
+          cat /tmp/veytrix-codex-result.txt || true
+          git status --short
+          git diff --check
+          if git diff --quiet; then
+            echo "Codex produced no source change; no blind rerun or empty repair commit will be created."
+            exit 1
+          fi
+          git config user.name "veytrix-autopilot[bot]"
+          git config user.email "veytrix-autopilot[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "veytrix: [veytrix-autopilot-repair] repair ${FAILED_WORKFLOW} run ${RUN_ID}"
+          git push origin "HEAD:${HEAD_BRANCH}"
+
+      - name: Report repair ceiling
+        if: steps.guard.outputs.repair_allowed != 'true'
+        shell: bash
+        run: |
+          echo "Autopilot repair ceiling reached; stopping automatic source changes for this chain."
+          exit 1
