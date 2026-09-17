@@ -11,9 +11,9 @@ permissions:
 
 jobs:
   free-ai-mesh-failover:
-    name: 100k-lane failure and failover test
+    name: 3m-lane hardcore failure and failover test
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout canary revision
         uses: actions/checkout@v6
@@ -26,19 +26,19 @@ jobs:
         with:
           node-version: '24'
 
-      - name: Run 100k-lane provider-failure canary
+      - name: Run 3m-lane hardcore provider-failure canary
         shell: bash
         run: |
           set -euo pipefail
           node free-ai-mesh/free_ai_mesh_canary.mjs
 
-      - name: Assert 100k canary proof markers
+      - name: Assert 3m hardcore canary proof markers
         shell: bash
         run: |
           set -euo pipefail
           node free-ai-mesh/free_ai_mesh_canary.mjs | tee /tmp/free-ai-mesh-canary.log
-          grep -Fxq 'FREE_AI_MESH_100K_CANARY=PASS' /tmp/free-ai-mesh-canary.log
-          grep -Fxq 'discovered_lanes=100000' /tmp/free-ai-mesh-canary.log
-          grep -Fxq 'first_attempt_failures=7' /tmp/free-ai-mesh-canary.log
-          grep -Fxq 'successful_fallback=free-lane-8' /tmp/free-ai-mesh-canary.log
-          grep -Fxq 'second_request_preferred=free-lane-8' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'FREE_AI_MESH_3M_HARDCORE_CANARY=PASS' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'discovered_lanes=3000000' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'consecutive_failures=100000' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'successful_fallback=free-lane-100001' /tmp/free-ai-mesh-canary.log
+          grep -Fxq 'second_request_preferred=free-lane-100001' /tmp/free-ai-mesh-canary.log
