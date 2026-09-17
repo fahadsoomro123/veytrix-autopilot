@@ -1,18 +1,18 @@
-name: Veytrix Hardcore AI Coding Proof
+name: Veytrix Quick AI Coding Proof
 
 on:
   push:
     branches:
-      - test/free-ai-hardcore
+      - test/free-ai-quick
 
 permissions:
   contents: read
 
 jobs:
-  hardcore-ai-proof:
-    name: Real AI coding solve + test
+  quick-ai-proof:
+    name: Real AI quick coding solve + test
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,15 +22,15 @@ jobs:
         with:
           node-version: 20
 
-      - name: Run standalone benchmark spec first
+      - name: Run unmodified quick benchmark first
         working-directory: hardcore-ai-test
         run: node test/spec.mjs || true
 
-      - name: Run real AI coding benchmark
+      - name: Run real AI quick coding benchmark
         working-directory: hardcore-ai-test
         env:
-          HARDCORE_MAX_MODELS: 12
-          HARDCORE_MODEL_TIMEOUT_MS: 120000
+          QUICK_MAX_MODELS: 6
+          QUICK_MODEL_TIMEOUT_MS: 60000
         run: node run-agent.mjs
 
       - name: Print machine-verifiable result
@@ -39,10 +39,10 @@ jobs:
         run: |
           test -f report.json && cat report.json || echo '{"report":"missing"}'
 
-      - name: Upload benchmark proof
+      - name: Upload quick benchmark proof
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: veytrix-hardcore-ai-proof
+          name: veytrix-quick-ai-proof
           path: hardcore-ai-test/report.json
           if-no-files-found: error
