@@ -1,0 +1,48 @@
+name: Veytrix Hardcore AI Coding Proof
+
+on:
+  push:
+    branches:
+      - test/free-ai-hardcore
+
+permissions:
+  contents: read
+
+jobs:
+  hardcore-ai-proof:
+    name: Real AI coding solve + test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run standalone benchmark spec first
+        working-directory: hardcore-ai-test
+        run: node test/spec.mjs || true
+
+      - name: Run real AI coding benchmark
+        working-directory: hardcore-ai-test
+        env:
+          HARDCORE_MAX_MODELS: 12
+          HARDCORE_MODEL_TIMEOUT_MS: 120000
+        run: node run-agent.mjs
+
+      - name: Print machine-verifiable result
+        working-directory: hardcore-ai-test
+        if: always()
+        run: |
+          test -f report.json && cat report.json || echo '{"report":"missing"}'
+
+      - name: Upload benchmark proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: veytrix-hardcore-ai-proof
+          path: hardcore-ai-test/report.json
+          if-no-files-found: error
