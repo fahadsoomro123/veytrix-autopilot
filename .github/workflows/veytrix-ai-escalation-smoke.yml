@@ -1,0 +1,93 @@
+name: Veytrix AI Escalation Smoke
+
+on:
+  push:
+    branches:
+      - implementation/preview-to-android-pass-2
+    paths:
+      - 'scripts/decide_engine.sh'
+      - 'scripts/deterministic_verify.sh'
+      - '.github/workflows/veytrix-ai-escalation-smoke.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ai-escalation-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Checkout VEYTRIX
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove deterministic failure
+        id: deterministic
+        shell: bash
+        continue-on-error: true
+        env:
+          AUTOPILOT_VERIFY_COMMAND: python -c "raise SystemExit(1)"
+        run: bash scripts/deterministic_verify.sh .
+
+      - name: Prove AI escalation decision
+        id: decision
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${OPENAI_API_KEY:-}"
+          decision="$(bash scripts/decide_engine.sh auto "${{ steps.deterministic.outcome }}" 'Repair the failing fixture' true)"
+          echo "$decision"
+          selected="$(awk -F= '$1=="selected" {print $2}' <<< "$decision")"
+          reason="$(awk -F= '$1=="reason" {print $2}' <<< "$decision")"
+          test "$selected" = ai
+          test "$reason" = deterministic-verification-insufficient
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+          echo "reason=$reason" >> "$GITHUB_OUTPUT"
+
+      - name: Create controlled repair fixture
+        if: steps.decision.outputs.selected == 'ai'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/veytrix-ai-smoke
+          cat > /tmp/veytrix-ai-smoke/fixture.py <<'PY'
+          def status():
+              return "BROKEN"
+          PY
+          cat > /tmp/veytrix-ai-smoke/test_fixture.py <<'PY'
+          from fixture import status
+          assert status() == "READY"
+          PY
+
+      - name: Run Codex AI repair
+        if: steps.decision.outputs.selected == 'ai'
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          working-directory: /tmp/veytrix-ai-smoke
+          output-file: /tmp/veytrix-ai-smoke-result.txt
+          prompt: |
+            Veytrix controlled AI escalation smoke test.
+            This is a disposable fixture, not a production repository.
+            Make the smallest source-only repair required so test_fixture.py passes.
+            Inspect fixture.py and test_fixture.py first.
+            Do not modify anything outside /tmp/veytrix-ai-smoke.
+            Do not access, print, expose, copy, or modify secrets or credentials.
+            Do not disable or weaken the assertion.
+            Run: python test_fixture.py
+            Stop only after that command passes.
+
+      - name: Verify AI repair
+        if: steps.decision.outputs.selected == 'ai'
+        working-directory: /tmp/veytrix-ai-smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          python test_fixture.py
+          grep -F 'return "READY"' fixture.py
+          echo 'AI escalation smoke test: PASS'
