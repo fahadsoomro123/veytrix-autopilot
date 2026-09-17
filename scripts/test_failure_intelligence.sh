@@ -14,6 +14,12 @@ EOF
 cat > "$TMP/credential.log" <<'EOF'
 Authentication failed: signing key not available
 EOF
+cat > "$TMP/signing-secret-empty.log" <<'EOF'
+test -n "${VEYTRIX_KEYSTORE_BASE64:-}"
+test -n "${VEYTRIX_KEYSTORE_PASSWORD:-}"
+test -n "${VEYTRIX_KEY_ALIAS:-}"
+test -n "${VEYTRIX_KEY_PASSWORD:-}"
+EOF
 
 expect_class() {
   local file="$1" expected="$2"
@@ -25,6 +31,7 @@ expect_class() {
 expect_class "$TMP/transient.log" transient
 expect_class "$TMP/build.log" code-or-build
 expect_class "$TMP/credential.log" credential-or-permission
+expect_class "$TMP/signing-secret-empty.log" credential-or-permission
 
 fingerprint="$(bash "$ROOT/scripts/failure_fingerprint.sh" "$TMP/transient.log" 'Veytrix Control Plane Self-Test' 'deadbeef' | awk -F= '$1=="fingerprint"{print $2}')"
 [[ "$fingerprint" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid fingerprint: $fingerprint"; exit 1; }
