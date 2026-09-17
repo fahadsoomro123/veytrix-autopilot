@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Veytrix secondary AI provider adapter. Callers sandbox the workspace and
+# decide whether AI escalation is justified before invoking this script.
+
+if [[ -z "${GEMINI_API_KEY:-}" ]]; then
+  echo "ERROR: GEMINI_API_KEY is not configured." >&2
+  exit 2
+fi
+
+command -v node >/dev/null 2>&1 || { echo "ERROR: Node.js is required." >&2; exit 3; }
+
+if ! command -v gemini >/dev/null 2>&1; then
+  echo "Installing Gemini CLI..." >&2
+  npm install -g @google/gemini-cli
+fi
+
+MODEL="${GEMINI_MODEL:-gemini-3.8-flash}"
+PROMPT_FILE="${1:-}"
+
+if [[ -z "$PROMPT_FILE" || ! -f "$PROMPT_FILE" ]]; then
+  echo "Usage: $0 <prompt-file>" >&2
+  exit 4
+fi
+
+GEMINI_API_KEY="$GEMINI_API_KEY" \
+GEMINI_CLI_TRUST_WORKSPACE=true \
+gemini \
+  --model "$MODEL" \
+  --yolo \
+  --output-format json \
+  -p "$(cat "$PROMPT_FILE")"
