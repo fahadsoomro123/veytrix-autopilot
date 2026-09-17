@@ -8,7 +8,7 @@ if [[ ! -f "$log_file" ]]; then
   exit 0
 fi
 
-if grep -Eqi '(secret|credential|token|keystore|signing key).*(missing|not set|not found|invalid|expired|denied)|permission denied|resource not accessible|authentication failed|unauthorized|forbidden' "$log_file"; then
+if grep -Eqi '(secret|credential|token|keystore|signing key).*(missing|not set|not found|invalid|expired|denied)|permission denied|resource not accessible|authentication failed|unauthorized|forbidden|test -n .*VEYTRIX_KEYSTORE_(BASE64|PASSWORD)|test -n .*VEYTRIX_KEY_ALIAS|test -n .*VEYTRIX_KEY_PASSWORD' "$log_file"; then
   echo "classification=credential-or-permission"
   echo "reason=external-credential-or-permission-blocker"
 elif grep -Eqi '(billing|quota exceeded|payment required|insufficient quota|api key.*(invalid|revoked))' "$log_file"; then
