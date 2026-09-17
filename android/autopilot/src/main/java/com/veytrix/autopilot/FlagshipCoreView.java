@@ -29,6 +29,7 @@ public final class FlagshipCoreView extends View {
     private final RectF baseOuter = new RectF();
     private final RectF baseMid = new RectF();
     private final RectF baseInner = new RectF();
+    private final RectF sphereHighlight = new RectF();
     private final Path mark = new Path();
     private final Path markGlow = new Path();
 
@@ -173,24 +174,26 @@ public final class FlagshipCoreView extends View {
         final float breathing = 1f + (float) Math.sin(t * 2.05f) * .021f;
         final float drift = (float) Math.sin(t * 1.20f) * dp(3.2f);
         final float cx = w * .5f;
-        final float cy = h * .385f + drift;
+        final float baseCy = h * .385f;
+        final float cy = baseCy + drift;
         final float orbital = Math.min(w, h) * .405f;
         final float radius = coreRadius * breathing;
 
-        // 1 — atmospheric glow behind the object
         fill.setShader(haloShader);
-        canvas.drawCircle(cx, cy, coreRadius * 3.18f, fill);
+        canvas.drawCircle(cx, baseCy, coreRadius * 3.18f, fill);
         fill.setShader(null);
 
-        // 2 — depth-oriented orbit system
         drawOrbitSystem(canvas, cx, cy, orbital, t);
         drawParticles(canvas, cx, cy, orbital, t);
-
-        // 3 — energy pedestal / light well
         drawPedestal(canvas, cx, h * .745f, orbital * .78f, t);
 
-        // 4 — dimensional sphere
-        drawSphere(canvas, cx, cy, radius, t);
+        // The cached sphere gradients and identity mark are built against the
+        // stable base center. Translate the canvas so animation drift moves
+        // the complete object together without breaking registration.
+        canvas.save();
+        canvas.translate(0f, drift);
+        drawSphere(canvas, cx, baseCy, radius, t);
+        canvas.restore();
 
         if (running) {
             postInvalidateOnAnimation();
@@ -207,7 +210,6 @@ public final class FlagshipCoreView extends View {
         stroke.setPathEffect(null);
         stroke.setStrokeCap(Paint.Cap.ROUND);
 
-        // Back-facing atmosphere: dimmer and softer.
         stroke.setStrokeWidth(dp(1.0f));
         stroke.setColor(Color.argb(52, 146, 177, 255));
         c.save();
@@ -222,7 +224,6 @@ public final class FlagshipCoreView extends View {
         c.drawOval(ringTilt, stroke);
         c.restore();
 
-        // Primary luminous orbit.
         stroke.setStrokeWidth(dp(1.15f));
         stroke.setColor(Color.argb(205, 105, 154, 255));
         c.save();
@@ -230,7 +231,6 @@ public final class FlagshipCoreView extends View {
         c.drawOval(ring, stroke);
         c.restore();
 
-        // Violet counter-rotating ring.
         stroke.setStrokeWidth(dp(.95f));
         stroke.setColor(Color.argb(148, 187, 104, 255));
         c.save();
@@ -238,7 +238,6 @@ public final class FlagshipCoreView extends View {
         c.drawOval(ringInner, stroke);
         c.restore();
 
-        // Cyan sweep ring, partially interrupted for depth.
         stroke.setStrokeWidth(dp(.85f));
         stroke.setColor(Color.argb(135, 79, 219, 255));
         c.save();
@@ -247,7 +246,6 @@ public final class FlagshipCoreView extends View {
         c.drawArc(ringTilt, 202f, 80f, false, stroke);
         c.restore();
 
-        // Fine dashed technical orbit.
         stroke.setPathEffect(new DashPathEffect(new float[]{dp(6), dp(11)}, dp(5) * t));
         stroke.setStrokeWidth(dp(.72f));
         stroke.setColor(Color.argb(112, 126, 101, 255));
@@ -257,7 +255,6 @@ public final class FlagshipCoreView extends View {
         c.restore();
         stroke.setPathEffect(null);
 
-        // Thin foreground arcs create an optical front/back split.
         stroke.setStrokeWidth(dp(1.35f));
         stroke.setColor(Color.argb(220, 144, 184, 255));
         c.save();
@@ -294,19 +291,16 @@ public final class FlagshipCoreView extends View {
     }
 
     private void drawSphere(Canvas c, float cx, float cy, float radius, float t) {
-        // Outer glass envelope.
         fill.setShader(sphereShader);
         fill.setShadowLayer(radius * .82f, 0, radius * .18f, Color.argb(138, 87, 92, 255));
         c.drawCircle(cx, cy, radius, fill);
         fill.clearShadowLayer();
         fill.setShader(null);
 
-        // Deep inner material layer.
         fill.setShader(sphereCoreShader);
         c.drawCircle(cx, cy, radius * .77f, fill);
         fill.setShader(null);
 
-        // Cool reflected crescent.
         fill.setColor(Color.argb(62, 105, 200, 255));
         c.drawOval(
                 cx - radius * .76f,
@@ -316,40 +310,36 @@ public final class FlagshipCoreView extends View {
                 fill
         );
 
-        // Directional specular point.
         fill.setColor(Color.WHITE);
         fill.setShadowLayer(radius * .22f, -radius * .18f, -radius * .18f, Color.argb(115, 104, 149, 255));
         c.drawCircle(cx - radius * .31f, cy - radius * .34f, radius * .105f, fill);
         fill.clearShadowLayer();
 
-        // Moving fine highlight for subtle motion without changing geometry.
         float lx = cx + (float) Math.sin(t * .72f) * radius * .26f;
         float ly = cy - radius * .58f;
         fill.setColor(Color.argb(45, 255, 255, 255));
         c.drawCircle(lx, ly, radius * .055f, fill);
 
-        // Thin inner glass rim.
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(dp(.72f));
         stroke.setColor(Color.argb(150, 152, 195, 255));
         c.drawCircle(cx, cy, radius * 1.035f, stroke);
 
-        // Glowing VEYTRIX identity mark.
         fill.setShader(markShader);
         fill.setShadowLayer(radius * .18f, 0, 0, Color.argb(155, 110, 104, 255));
         c.drawPath(markGlow, fill);
         fill.clearShadowLayer();
         fill.setShader(null);
 
-        // Micro edge highlight under the mark.
-        stroke.setStrokeWidth(dp(.65f));
-        stroke.setColor(Color.argb(120, 232, 241, 255));
-        c.drawArc(new RectF(
+        sphereHighlight.set(
                 cx - radius * .61f,
                 cy - radius * .60f,
                 cx + radius * .61f,
                 cy + radius * .60f
-        ), 208f, 98f, false, stroke);
+        );
+        stroke.setStrokeWidth(dp(.65f));
+        stroke.setColor(Color.argb(120, 232, 241, 255));
+        c.drawArc(sphereHighlight, 208f, 98f, false, stroke);
     }
 
     private void drawPedestal(Canvas c, float cx, float cy, float width, float t) {
@@ -362,21 +352,17 @@ public final class FlagshipCoreView extends View {
         baseMid.set(left + dp(7), top + dp(6), right - dp(7), bottom - dp(7));
         baseInner.set(left + dp(17), top + dp(11), right - dp(17), bottom - dp(12));
 
-        // Soft ground halo.
         fill.setColor(Color.argb(70, 63, 101, 184));
         fill.setShadowLayer(dp(22), 0, dp(5), Color.argb(115, 62, 124, 255));
         c.drawOval(baseOuter, fill);
         fill.clearShadowLayer();
 
-        // Outer graphite-metal body.
         fill.setColor(Color.rgb(8, 18, 33));
         c.drawOval(baseOuter, fill);
 
-        // Inner blue glass layer.
         fill.setColor(Color.rgb(8, 22, 42));
         c.drawOval(baseMid, fill);
 
-        // Central energy well.
         fill.setColor(Color.argb(210, 7, 13, 25));
         c.drawOval(baseInner, fill);
 
@@ -393,7 +379,6 @@ public final class FlagshipCoreView extends View {
         stroke.setColor(Color.argb(92, 79, 212, 255));
         c.drawOval(baseInner, stroke);
 
-        // Rotating segmented energy rail.
         float start = (t * 34f) % 360f;
         for (int i = 0; i < 12; i++) {
             float alpha = 74f + 70f * (float) Math.sin(t * 2.0f + i * .85f);
@@ -402,7 +387,6 @@ public final class FlagshipCoreView extends View {
             c.drawArc(baseMid, start + i * 30f, 9f, false, stroke);
         }
 
-        // Vertical illumination rising from the platform.
         for (int i = -3; i <= 3; i++) {
             float x = cx + i * dp(7.5f);
             float beamAlpha = 18f + 20f * (float) Math.sin(t * 1.9f + i);
@@ -418,7 +402,6 @@ public final class FlagshipCoreView extends View {
             );
         }
 
-        // Bright contact light at the core/pedestal interface.
         glow.setColor(Color.argb(85, 104, 159, 255));
         glow.setShadowLayer(dp(10), 0, 0, Color.argb(100, 84, 127, 255));
         c.drawOval(
