@@ -12,22 +12,49 @@ The historical predecessor identity was established as `NexusNova Autopilot` fro
 - NexusNova `autopilot/smoke-test`: `107c3079c12f3cd37c5e6d79fb3957c502c8b2f4`
   - Parent: `909a9aa91577a68ab642500a3717b5a127ab9515`
   - Removed the confirmed Autopilot/smoke predecessor paths from that stale branch and removed only its `:autopilot` parent-project include.
+- NexusNova `feat/autopilot-free-first-flagship`: `3b975846fe4c23201169f38f17121a8585cb65b5`
+  - Parent: `15605267e839cf6aa5886ad001c19ccd5cd942f2`
+  - Removed the 8 confirmed Autopilot predecessor files present on that older branch and removed only its `include(":autopilot")` parent-project line.
+
+## Historical source scope
+
+The exact mainline Autopilot development range `1f16fe1b63348cadbac7bc551ad97ec9e97d33d9` → `7a0309265e9e85739e35cd662ee2f2ee895ecc97` changed exactly these 11 paths: the old Autopilot workflow, self-test, build workflow, E2E fixture, five Android Autopilot module files, the Android parent settings, and the disposable `.autopilot-live-test` marker.
+
+The `autopilot/smoke-test` branch added the additional smoke-only workflow and trigger. The `feat/autopilot-free-first-flagship` branch had no unique commits relative to NexusNova `main`, but it retained the inherited Autopilot files and was therefore cleaned separately.
 
 ## Post-cleanup proof
 
-- `.github/workflows/nexusnova-autopilot.yml` on NexusNova `main` returns HTTP 404.
-- `.github/workflows/build-nexusnova-autopilot-apk.yml` on NexusNova `main` returns HTTP 404.
-- `NexusNovaAndroid/autopilot/` on NexusNova `main` returns HTTP 404.
-- NexusNova `main` `NexusNovaAndroid/settings.gradle.kts` now contains only `:app` and `:tracker` includes; the Autopilot include is gone.
-- GitHub code search on NexusNova `main` for `NexusNova Autopilot` returns no indexed result.
-- GitHub code search on NexusNova `main` for `com.nexusnova.autopilot` returns no indexed result.
+NexusNova `main`:
 
-## Not removed
+- `.github/workflows/nexusnova-autopilot.yml` returns HTTP 404.
+- `.github/workflows/build-nexusnova-autopilot-apk.yml` returns HTTP 404.
+- `NexusNovaAndroid/autopilot/` returns HTTP 404.
+- `NexusNovaAndroid/settings.gradle.kts` contains only `:app` and `:tracker` includes; the Autopilot include is gone.
+- Code search for `NexusNova Autopilot` returns no indexed result.
+- Code search for `com.nexusnova.autopilot` returns no indexed result.
 
-The NexusNova product application, Firebase/web assets, travel/product workflows, and other unrelated NexusNova material were not touched by these cleanup commits.
+NexusNova `feat/autopilot-free-first-flagship` was also verified before cleanup to contain the old Autopilot workflow/build workflow/module. After cleanup commit `3b975846fe4c23201169f38f17121a8585cb65b5`, the branch points to a tree with those files removed. The branch ref itself remains because the active GitHub connection does not expose a branch-delete operation.
 
-The `feat/autopilot-free-first-flagship` branch was not rewritten because it has no unique changes relative to current NexusNova `main` and remains a historical branch reference. Branch deletion is not available through the active GitHub connection.
+## What was migrated vs. what was intentionally recreated
 
-## Important implementation note
+The confirmed predecessor capabilities already exist in the separate VEYTRIX repository rather than being blindly copied into the production preview implementation:
 
-The active VEYTRIX implementation branch contains the exact-preview Android shell. The earlier VEYTRIX migration branch `migration/forensic-smart-autopilot` retains the adapted functional Android mission-runner implementation. The historical NexusNova client was therefore not blindly copied over the approved preview host.
+- `.github/workflows/nexusnova-autopilot.yml` → adapted VEYTRIX Autopilot orchestration
+- `.github/workflows/nexusnova-autopilot-self-test.yml` → adapted VEYTRIX self-test
+- `autopilot-e2e-test/trigger.txt` → adapted VEYTRIX fixture
+- Old Android `MainActivity.java` → adapted functional Veytrix client on `migration/forensic-smart-autopilot`
+- Old Android manifest/build/proguard/styles → adapted under `android/autopilot`
+- NexusNova Android parent settings → standalone `android/settings.gradle.kts`
+- NexusNova signing workflow → replaced by Veytrix `build-android.yml` with separate `VEYTRIX_*` signing secrets
+
+The active implementation branch intentionally uses the approved exact-preview WebView shell, so the historical full Android client was not allowed to overwrite the approved UI host.
+
+## Security boundary
+
+No NexusNova business/product code was moved into VEYTRIX. No signing secret, keystore, API credential, token, or private credential was copied.
+
+The NexusNova product application, Firebase/web assets, travel/product workflows, and unrelated CI material were not removed by these cleanup commits.
+
+## Separate VEYTRIX follow-up
+
+The active VEYTRIX implementation branch still contains two historical NexusNova references inside `.github/workflows/veytrix-autopilot.yml` (the default target repository and the old `workflow_run` workflow name). Those are configuration-cleanup items in VEYTRIX and are not evidence that NexusNova product code remains in the old repository.
