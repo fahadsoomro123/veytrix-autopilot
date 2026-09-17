@@ -30,15 +30,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Verify approved flagship preview asset
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s android/autopilot/src/main/assets/veytrix_preview.html
-          test "$(git hash-object android/autopilot/src/main/assets/veytrix_preview.html)" = "4c256667400e0f0599f2c9322ee482a0bea8eb39"
-          echo "Approved preview asset already locked in tree."
-
-      - name: Verify VEYTRIX Android contract
+      - name: Verify VEYTRIX native Android contract
         shell: bash
         run: |
           set -euo pipefail
@@ -82,7 +74,10 @@ jobs:
           "$AAPT" dump badging "$apk" > /tmp/veytrix-debug-badging.txt
           grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-debug-badging.txt
           grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-debug-badging.txt
-          unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'
+          if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
+            echo 'Legacy WebView preview asset is still packaged.' >&2
+            exit 1
+          fi
 
       - name: Upload debug APK for phone testing
         uses: actions/upload-artifact@v7
@@ -99,8 +94,9 @@ jobs:
         run: |
           {
             echo '### Veytrix Android Debug Build'
-            echo '- Approved preview: verified'
+            echo '- Native Android implementation: verified'
             echo '- Android contract: passed'
+            echo '- Legacy WebView preview: not packaged'
             echo '- Gradle checks: passed'
             echo '- Debug APK: built and identity-verified'
             echo '- Phone-test artifact: uploaded'
@@ -145,14 +141,7 @@ jobs:
           fi
           echo 'All four release signing inputs are configured.'
 
-      - name: Verify approved flagship preview asset
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -s android/autopilot/src/main/assets/veytrix_preview.html
-          test "$(git hash-object android/autopilot/src/main/assets/veytrix_preview.html)" = "4c256667400e0f0599f2c9322ee482a0bea8eb39"
-
-      - name: Verify VEYTRIX Android contract
+      - name: Verify VEYTRIX native Android contract
         shell: bash
         run: |
           set -euo pipefail
@@ -194,7 +183,10 @@ jobs:
           "$AAPT" dump badging "$apk" > /tmp/veytrix-release-badging.txt
           grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-release-badging.txt
           grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-release-badging.txt
-          unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'
+          if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
+            echo 'Legacy WebView preview asset is still packaged.' >&2
+            exit 1
+          fi
 
       - name: Upload signed release APK
         uses: actions/upload-artifact@v7
@@ -214,6 +206,7 @@ jobs:
             echo '- Signing inputs: configured'
             echo '- Release APK: built'
             echo '- Package identity: verified'
-            echo '- Approved preview asset: present'
+            echo '- Native Android implementation: verified'
+            echo '- Legacy WebView preview: not packaged'
             echo '- Release artifact: uploaded'
           } >> "$GITHUB_STEP_SUMMARY"
