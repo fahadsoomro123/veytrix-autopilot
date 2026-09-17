@@ -1,0 +1,32 @@
+name: Veytrix Control Plane Self-Test
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  failure-intelligence:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Exercise deterministic failure intelligence
+        run: bash scripts/test_failure_intelligence.sh
+
+  transient-recovery-signal:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deterministic transient probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_RUN_ATTEMPT}" == "1" ]]; then
+            echo 'HTTP 503 while downloading dependency (intentional control-plane probe)' >&2
+            exit 1
+          fi
+          echo "Transient recovery probe passed on attempt ${GITHUB_RUN_ATTEMPT}."
