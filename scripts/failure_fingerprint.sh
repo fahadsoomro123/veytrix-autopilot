@@ -5,12 +5,8 @@ log="${1:?sanitized log required}"
 workflow="${2:-unknown-workflow}"
 sha="${3:-unknown-sha}"
 
-classification=unknown
-if grep -Eqi '(rate limit|timed out|timeout|HTTP 503|HTTP 502|HTTP 504|connection reset|connection refused|temporary failure|network is unreachable|failed to download|could not resolve host|runner.*unavailable|service unavailable|no space left on device)' "$log"; then
-  classification=transient
-elif grep -Eqi '(compilation failed|compile.*error|test failed|assertion.*failed|syntax error|type error|lint.*error|module not found|cannot find symbol|execution failed|gradle.*failed|build failed)' "$log"; then
-  classification=code-or-build
-fi
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+classification="$(bash "$script_dir/classify_failure.sh" "$log" | awk -F= '$1=="classification"{print $2}')"
 
 # Normalize volatile run IDs, timestamps and obvious addresses so repeated instances
 # of the same root failure converge on one fingerprint.
