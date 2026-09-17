@@ -72,7 +72,7 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
           test -x "$AAPT"
           "$AAPT" dump badging "$apk" > /tmp/veytrix-debug-badging.txt
-          grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-debug-badging.txt
+          grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-debug-badging.txt
           grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-debug-badging.txt
           if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
             echo 'Legacy WebView preview asset is still packaged.' >&2
@@ -98,7 +98,7 @@ jobs:
             echo '- Android contract: passed'
             echo '- Legacy WebView preview: not packaged'
             echo '- Gradle checks: passed'
-            echo '- Debug APK: built and identity-verified'
+            echo '- Debug APK: built and identity-verified (1.0.1 / 10001)'
             echo '- Phone-test artifact: uploaded'
             if [[ '${{ inputs.signed_release }}' == 'true' ]]; then
               echo '- Signed release request: queued for release job'
@@ -181,7 +181,7 @@ jobs:
           AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
           test -x "$AAPT"
           "$AAPT" dump badging "$apk" > /tmp/veytrix-release-badging.txt
-          grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-release-badging.txt
+          grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-release-badging.txt
           grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-release-badging.txt
           if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
             echo 'Legacy WebView preview asset is still packaged.' >&2
@@ -205,6 +205,7 @@ jobs:
             echo '### Veytrix Signed Release'
             echo '- Signing inputs: configured'
             echo '- Release APK: built'
+            echo '- Version: 1.0.1 (10001)'
             echo '- Package identity: verified'
             echo '- Native Android implementation: verified'
             echo '- Legacy WebView preview: not packaged'
