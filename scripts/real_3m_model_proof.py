@@ -4,7 +4,6 @@ import json
 import os
 import sys
 import time
-from collections import Counter
 
 from huggingface_hub import HfApi, InferenceClient
 
@@ -19,7 +18,13 @@ report = {
     'hf_provider_backed_models': 0,
     'hf_live_provider_mappings': 0,
     'provider_counts': {},
-    'live_probe': {'status': 'SKIPPED_NO_HF_TOKEN', 'tested': 0, 'passed': 0, 'failed': 0, 'samples': []},
+    'live_probe': {
+        'status': 'SKIPPED_NO_HF_TOKEN',
+        'tested': 0,
+        'passed': 0,
+        'failed': 0,
+        'samples': [],
+    },
 }
 seen = set()
 sha = hashlib.sha256()
@@ -28,30 +33,46 @@ start = time.time()
 print('REAL_3M_MODEL_PROOF=START', flush=True)
 print('Scanning Hugging Face Hub model catalog with pagination...', flush=True)
 
-# Exhaustive public catalog discovery. HfApi.list_models() is an iterator over the Hub catalog.
-for model in api.list_models(limit=None, full=False):
+# Exhaustive public catalog discovery. HfApi.list_models() is an iterator over
+# the Hub catalog and handles pagination/rate-limit retries.
+for model in api.list_models(limit=None):
     model_id = getattr(model, 'id', None)
     if not model_id:
         continue
     report['hf_discovered_models'] += 1
-    seen.add(model_id)
-    sha.update(model_id.encode('utf-8'))
-    sha.update(b'\n')
+    if model_id not in seen:
+        seen.add(model_id)
+        sha.update(model_id.encode('utf-8'))
+        sha.update(b'\n')
     if report['hf_discovered_models'] % 100_000 == 0:
         elapsed = time.time() - start
-        print(f'progress_discovered={report["hf_discovered_models"]} elapsed_sec={elapsed:.1f}', flush=True)
+        print(
+            f'progress_discovered={report["hf_discovered_models"]} '
+            f'unique={len(seen)} elapsed_sec={elapsed:.1f}',
+            flush=True,
+        )
 
 report['hf_unique_models'] = len(seen)
 report['catalog_sha256'] = sha.hexdigest()
-
 print(f'hf_discovered_models={report["hf_discovered_models"]}', flush=True)
 print(f'hf_unique_models={report["hf_unique_models"]}', flush=True)
 print(f'catalog_sha256={report["catalog_sha256"]}', flush=True)
 
-# Real provider-backed discovery, using HF's server-side inference filter.
-print('Scanning provider-backed catalog...', flush=True)
+# Server-side warm catalog: only models currently served by at least one
+# inference provider.
+print('Scanning warm/provider-backed catalog...', flush=True)
+for _ in api.list_models(inference='warm', limit=None):
+    report['hf_warm_models'] += 1
+print(f'hf_warm_models={report["hf_warm_models"]}', flush=True)
+
+# Provider-backed metadata with live/staging mapping information.
+print('Scanning provider mappings...', flush=True)
 provider_models = []
-for model in api.list_models(inference_provider='all', expand=['pipeline_tag', 'inferenceProviderMapping'], limit=None, full=False):
+for model in api.list_models(
+    inference_provider='all',
+    expand=['pipeline_tag', 'inferenceProviderMapping'],
+    limit=None,
+):
     model_id = getattr(model, 'id', None)
     if not model_id:
         continue
@@ -65,11 +86,11 @@ for model in api.list_models(inference_provider='all', expand=['pipeline_tag', '
             if status == 'live':
                 report['hf_live_provider_mappings'] += 1
 
-report['provider_models_sampled'] = len(provider_models)
 print(f'hf_provider_backed_models={report["hf_provider_backed_models"]}', flush=True)
 print(f'hf_live_provider_mappings={report["hf_live_provider_mappings"]}', flush=True)
 
-# A real inference probe is only run when the repository supplies an HF token.
+# Optional real inference probe. The workflow supplies HF_TOKEN only when
+# an authenticated token is configured in GitHub Actions secrets.
 token = os.environ.get('HF_TOKEN')
 if token:
     client = InferenceClient(token=token, provider='auto')
@@ -77,14 +98,13 @@ if token:
     for model in provider_models:
         if len(candidates) >= 10:
             break
-        pipeline_tag = getattr(model, 'pipeline_tag', None)
         mapping = getattr(model, 'inference_provider_mapping', None) or {}
         live_chat = False
         if isinstance(mapping, dict):
             for info in mapping.values():
                 task = getattr(info, 'task', None) if not isinstance(info, dict) else info.get('task')
                 status = getattr(info, 'status', None) if not isinstance(info, dict) else info.get('status')
-                if status == 'live' and (task == 'conversational' or pipeline_tag == 'text-generation'):
+                if status == 'live' and task == 'conversational':
                     live_chat = True
                     break
         if live_chat:
@@ -92,10 +112,10 @@ if token:
 
     report['live_probe']['status'] = 'EXECUTED'
     for model_id in candidates:
-        t0 = time.time()
         item = {'model': model_id}
+        t0 = time.time()
         try:
-            response = client.chat_completion(
+            response = client.chat.completions.create(
                 model=model_id,
                 messages=[{'role': 'user', 'content': 'Reply with exactly VEYTRIX_OK'}],
                 max_tokens=8,
@@ -104,17 +124,16 @@ if token:
             item['latency_ms'] = round((time.time() - t0) * 1000, 1)
             item['response_valid'] = text == 'VEYTRIX_OK'
             if item['response_valid']:
-                report['live_probe']['passed'] += 1
                 item['status'] = 'PASS'
+                report['live_probe']['passed'] += 1
             else:
-                report['live_probe']['failed'] += 1
                 item['status'] = 'FAIL_INVALID_RESPONSE'
+                report['live_probe']['failed'] += 1
         except Exception as exc:
-            report['live_probe']['failed'] += 1
             item['status'] = 'FAIL_EXCEPTION'
             item['error'] = str(exc)[:500]
+            report['live_probe']['failed'] += 1
         report['live_probe']['samples'].append(item)
-
     report['live_probe']['tested'] = len(candidates)
 
 report['elapsed_sec'] = round(time.time() - start, 2)
