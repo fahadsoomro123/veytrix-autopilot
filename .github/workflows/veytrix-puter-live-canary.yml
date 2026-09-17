@@ -1,0 +1,97 @@
+name: Veytrix Puter Live Canary
+
+on:
+  push:
+    branches:
+      - 'test/free-ai-mesh-canary'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  veytrix-integration:
+    name: Veytrix router integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Run Veytrix integration canary
+        run: node free-ai-mesh/veytrix_ai_router_canary.mjs
+
+  puter-live:
+    name: Real Puter live request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Install Puter.js
+        if: env.PUTER_AUTH_TOKEN != ''
+        run: npm install --no-save @heyputer/puter.js
+
+      - name: Execute live keyless Puter probe
+        if: env.PUTER_AUTH_TOKEN != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { init } from '@heyputer/puter.js/src/init.cjs';
+
+          const puter = init(process.env.PUTER_AUTH_TOKEN);
+          const providers = await puter.ai.listModelProviders();
+          const models = await puter.ai.listModels();
+          if (!Array.isArray(providers) || providers.length === 0) throw new Error('Puter provider discovery returned no providers');
+          if (!Array.isArray(models) || models.length === 0) throw new Error('Puter model discovery returned no models');
+
+          const freeModels = models.filter((m) => {
+            const id = String(m.id ?? '');
+            const cost = m.cost;
+            return id.endsWith(':free') || (cost && Number(cost.input) === 0 && Number(cost.output) === 0);
+          });
+          if (freeModels.length === 0) throw new Error('No currently advertised free Puter model was discoverable');
+
+          const selected = freeModels[0];
+          const response = await puter.ai.chat(
+            'Reply with exactly PUTER_LIVE_OK and nothing else.',
+            { model: selected.id, normalize: true, max_tokens: 16 },
+          );
+
+          const text = String(response?.message?.content ?? response?.content ?? '').trim();
+          if (!text.includes('PUTER_LIVE_OK')) {
+            throw new Error(`Unexpected Puter response from ${selected.id}: ${text}`);
+          }
+
+          console.log(`PUTER_LIVE=PASS`);
+          console.log(`providers=${providers.length}`);
+          console.log(`models=${models.length}`);
+          console.log(`free_models=${freeModels.length}`);
+          console.log(`selected_model=${selected.id}`);
+          NODE
+
+      - name: Report live Puter probe status
+        if: env.PUTER_AUTH_TOKEN == ''
+        run: |
+          echo 'PUTER_LIVE=BLOCKED_NO_PUTER_AUTH_TOKEN'
+          echo 'A real Puter request requires a Puter user authentication token in CI; Puter documents browser-side keyless auth and Node initialization with an auth token.'
