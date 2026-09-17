@@ -1,0 +1,70 @@
+name: Veytrix Smart Autopilot Self-Test
+
+on:
+  push:
+    branches:
+      - implementation/preview-to-android-pass-2
+    paths:
+      - 'autopilot-e2e-test/**'
+      - 'scripts/classify_failure.sh'
+      - 'scripts/failure_fingerprint.sh'
+      - 'scripts/test_failure_intelligence.sh'
+      - '.github/workflows/veytrix-autopilot-self-test.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  failure-intelligence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Run classifier and fingerprint tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/test_failure_intelligence.sh
+
+  self-healing-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Deterministic transient-failure probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "VEYTRIX_AUTOPILOT_E2E attempt=${GITHUB_RUN_ATTEMPT}"
+          if [ "${GITHUB_RUN_ATTEMPT}" -eq 1 ]; then
+            echo "HTTP 503: deterministic Veytrix Smart Autopilot self-healing probe" >&2
+            exit 1
+          fi
+          test -s autopilot-e2e-test/trigger.txt
+          echo "Veytrix Smart Autopilot self-healing probe recovered successfully on rerun."
+
+      - name: Write verification marker
+        if: success()
+        shell: bash
+        run: |
+          printf 'Veytrix Smart Autopilot E2E recovery verified on run %s, attempt %s.\n' "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > VEYTRIX_AUTOPILOT_E2E_VERIFIED.md
+
+      - name: Upload verification marker
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Veytrix-Autopilot-E2E-verification
+          path: VEYTRIX_AUTOPILOT_E2E_VERIFIED.md
+          if-no-files-found: error
+          retention-days: 14
