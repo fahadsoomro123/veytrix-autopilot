@@ -22,7 +22,7 @@ elif grep -Eqi '(billing|quota exceeded|payment required|insufficient quota|api 
 elif grep -Eqi '(rate limit|timed out|timeout|HTTP 503|HTTP 502|HTTP 504|\b503\b|\b502\b|\b504\b|connection reset|connection refused|temporary failure|network is unreachable|failed to download|could not resolve host|runner.*unavailable|service unavailable|no space left on device)' "$log_file"; then
   echo "classification=transient"
   echo "reason=known-transient-infrastructure-signature"
-elif grep -Eqi '(compilation failed|compile.*error|test failed|assertion.*failed|syntax error|type error|lint.*error|module not found|cannot find symbol|execution failed|gradle.*failed|build failed|check.*failed)' "$log_file"; then
+elif grep -Eqi '(compilation failed|compile.*error|compileJava.*failed|javac.*error|cannot find symbol|unclosed (string literal|character literal)|illegal start of (expression|type)|reached end of file while parsing|\([^)]+\) expected|[;{}] expected|syntax error|type error|test failed|assertion.*failed|lint.*error|module not found|execution failed|gradle.*failed|build failed|check.*failed)' "$log_file"; then
   echo "classification=code-or-build"
   echo "reason=source-or-build-failure-signature"
 else
