@@ -1,57 +1,50 @@
 import assert from 'node:assert/strict';
-import { mergeHeaders } from '../src/scheduler.mjs';
+import { parseKeyValuePairs } from '../src/scheduler.mjs';
 
-// 1. Override is case-insensitive and keeps the original base-key casing.
+// 1. Basic key=value parsing.
 assert.deepEqual(
-  mergeHeaders(
-    { Authorization: 'Bearer old', 'Content-Type': 'application/json' },
-    { authorization: 'Bearer new' },
-  ),
-  { Authorization: 'Bearer new', 'Content-Type': 'application/json' },
+  parseKeyValuePairs('name=Fahad, mode=quick'),
+  { name: 'Fahad', mode: 'quick' },
 );
 
-// 2. Null removes an existing header, case-insensitively.
+// 2. Whitespace around segments, keys, and values is trimmed.
 assert.deepEqual(
-  mergeHeaders({ Authorization: 'Bearer x', 'X-App': 'veytrix' }, { 'x-app': null }),
-  { Authorization: 'Bearer x' },
+  parseKeyValuePairs('  name = Fahad  ,  mode = deep  '),
+  { name: 'Fahad', mode: 'deep' },
 );
 
-// 3. Undefined also removes an existing header.
+// 3. Duplicate keys use the last value.
 assert.deepEqual(
-  mergeHeaders({ 'X-Test': 'yes' }, { 'x-test': undefined }),
-  {},
+  parseKeyValuePairs('mode=quick,mode=deep'),
+  { mode: 'deep' },
 );
 
-// 4. New override headers are appended using their supplied key spelling.
+// 4. Values may contain '='; split only on the first '='.
 assert.deepEqual(
-  mergeHeaders({ A: '1', B: '2' }, { 'X-New': '3' }),
-  { A: '1', B: '2', 'X-New': '3' },
+  parseKeyValuePairs('token=a=b=c, name=Veytrix'),
+  { token: 'a=b=c', name: 'Veytrix' },
 );
 
-// 5. An empty string is a legitimate value and must be retained.
+// 5. Empty segments are ignored and a missing value becomes an empty string.
 assert.deepEqual(
-  mergeHeaders({ A: '1' }, { a: '' }),
-  { A: '' },
+  parseKeyValuePairs('a=1,,b=,   ,c=3'),
+  { a: '1', b: '', c: '3' },
 );
 
-// 6. Inputs must not be mutated.
-const base = { Authorization: 'old', A: '1' };
-const override = { authorization: 'new', B: '2' };
-const baseSnapshot = structuredClone(base);
-const overrideSnapshot = structuredClone(override);
-mergeHeaders(base, override);
-assert.deepEqual(base, baseSnapshot);
-assert.deepEqual(override, overrideSnapshot);
-
-// 7. Matching uses ASCII case-insensitive header names.
+// 6. A segment without '=' still creates a key with an empty value.
 assert.deepEqual(
-  mergeHeaders({ 'X-CUSTOM-HEADER': 'old' }, { 'x-custom-header': 'new' }),
-  { 'X-CUSTOM-HEADER': 'new' },
+  parseKeyValuePairs('flag,mode=quick'),
+  { flag: '', mode: 'quick' },
 );
 
-// 8. New values are preserved exactly; do not stringify them.
-const value = { enabled: true };
-const result = mergeHeaders({}, { 'X-Meta': value });
-assert.equal(result['X-Meta'], value);
+// 7. Blank keys are ignored.
+assert.deepEqual(
+  parseKeyValuePairs(' =bad, ok=yes'),
+  { ok: 'yes' },
+);
 
-console.log('QUICK_SPEC=PASS');
+// 8. Non-string input returns a fresh empty object.
+assert.deepEqual(parseKeyValuePairs(null), {});
+assert.deepEqual(parseKeyValuePairs(undefined), {});
+
+console.log('BASIC_SPEC=PASS');
