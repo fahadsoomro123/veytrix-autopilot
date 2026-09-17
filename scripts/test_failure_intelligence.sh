@@ -28,10 +28,22 @@ expect_class() {
   [[ "$actual" == "$expected" ]] || { echo "expected $expected, got $actual"; exit 1; }
 }
 
+expect_reason() {
+  local file="$1" expected="$2"
+  local actual
+  actual="$(bash "$ROOT/scripts/classify_failure.sh" "$file" | awk -F= '$1=="reason"{print $2}')"
+  [[ "$actual" == "$expected" ]] || { echo "expected reason $expected, got $actual"; exit 1; }
+}
+
 expect_class "$TMP/transient.log" transient
 expect_class "$TMP/build.log" code-or-build
 expect_class "$TMP/credential.log" credential-or-permission
 expect_class "$TMP/signing-secret-empty.log" credential-or-permission
+
+expect_reason "$TMP/transient.log" known-transient-infrastructure-signature
+expect_reason "$TMP/build.log" source-or-build-failure-signature
+expect_reason "$TMP/credential.log" external-credential-or-permission-blocker
+expect_reason "$TMP/signing-secret-empty.log" veytrix-signing-credential-signal
 
 fingerprint="$(bash "$ROOT/scripts/failure_fingerprint.sh" "$TMP/transient.log" 'Veytrix Control Plane Self-Test' 'deadbeef' | awk -F= '$1=="fingerprint"{print $2}')"
 [[ "$fingerprint" =~ ^[0-9a-f]{64}$ ]] || { echo "invalid fingerprint: $fingerprint"; exit 1; }
