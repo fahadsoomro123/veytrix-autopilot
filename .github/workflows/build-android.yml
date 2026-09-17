@@ -6,6 +6,9 @@
 name: Build Veytrix Autopilot Android
 
 on:
+  push:
+    paths:
+      - '.github/workflows/build-android.yml'
   workflow_dispatch:
 
 permissions:
