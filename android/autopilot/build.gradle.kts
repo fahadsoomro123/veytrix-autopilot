@@ -12,8 +12,8 @@ android {
         applicationId = "com.veytrix.autopilot"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10000
-        versionName = "1.0.0"
+        versionCode = 10001
+        versionName = "1.0.1"
     }
 
     signingConfigs {
@@ -39,8 +39,7 @@ android {
 
     buildTypes {
         debug {
-            // Keep the production application ID so the first phone-test APK exercises
-            // the same update identity. Release signing remains separate and secure.
+            // Debug remains useful for phone testing. OTA updates must use the signed release artifact.
         }
         release {
             isMinifyEnabled = false
