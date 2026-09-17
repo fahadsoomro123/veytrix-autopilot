@@ -16,12 +16,12 @@ public final class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow().setStatusBarColor(Color.rgb(7, 10, 16));
-        getWindow().setNavigationBarColor(Color.rgb(7, 10, 16));
+        getWindow().setStatusBarColor(Color.rgb(11, 11, 9));
+        getWindow().setNavigationBarColor(Color.rgb(11, 11, 9));
         getWindow().getDecorView().setSystemUiVisibility(0);
 
         webView = new WebView(this);
-        webView.setBackgroundColor(Color.rgb(2, 4, 9));
+        webView.setBackgroundColor(Color.rgb(11, 11, 9));
         webView.setOverScrollMode(View.OVER_SCROLL_NEVER);
         webView.setVerticalScrollBarEnabled(false);
         webView.setHorizontalScrollBarEnabled(false);
@@ -42,12 +42,12 @@ public final class MainActivity extends Activity {
         settings.setUseWideViewPort(false);
 
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(Color.rgb(2, 4, 9));
+        root.setBackgroundColor(Color.rgb(11, 11, 9));
         root.addView(webView, new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT,
                 FrameLayout.LayoutParams.MATCH_PARENT));
         setContentView(root);
-        webView.loadUrl("file:///android_asset/veytrix_preview.html");
+        webView.loadUrl("file:///android_asset/flagship_android_preview.html");
     }
 
     @Override
