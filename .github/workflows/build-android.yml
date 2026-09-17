@@ -1,22 +1,126 @@
-# Default-branch workflow registration for the VEYTRIX Android pipeline.
-# The implementation branch supplies the real build jobs. Keeping this
-# workflow definition on the default branch lets workflow_run listeners in the
-# control plane resolve the Android workflow by name without moving the
-# unfinished Android implementation onto main.
 name: Build Veytrix Autopilot Android
 
 on:
+  workflow_dispatch:
   push:
     paths:
+      - 'android/**'
+      - 'scripts/**'
+      - 'docs/ANDROID-RELEASE.md'
       - '.github/workflows/build-android.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
-  registration:
+  build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - name: Confirm Android workflow registration
-        run: echo 'Build Veytrix Autopilot Android is registered on the default branch.'
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify approved flagship preview asset
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android/autopilot/src/main/assets/veytrix_preview.html
+          test "$(git hash-object android/autopilot/src/main/assets/veytrix_preview.html)" = "4c256667400e0f0599f2c9322ee482a0bea8eb39"
+          echo "Approved preview asset already locked in tree."
+
+      - name: Verify VEYTRIX Android contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_android_contract.sh .
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+
+      - name: Run Gradle checks
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :autopilot:check
+
+      - name: Build debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon :autopilot:assembleDebug
+          test -s autopilot/build/outputs/apk/debug/autopilot-debug.apk
+          sha256sum autopilot/build/outputs/apk/debug/autopilot-debug.apk | tee autopilot/build/outputs/apk/debug/autopilot-debug.apk.sha256
+
+      - name: Upload debug APK for phone testing
+        uses: actions/upload-artifact@v7
+        with:
+          name: Veytrix-Autopilot-debug-phone-test
+          path: |
+            android/autopilot/build/outputs/apk/debug/autopilot-debug.apk
+            android/autopilot/build/outputs/apk/debug/autopilot-debug.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          VEYTRIX_KEYSTORE_BASE64: ${{ secrets.VEYTRIX_KEYSTORE_BASE64 }}
+          VEYTRIX_KEYSTORE_PASSWORD: ${{ secrets.VEYTRIX_KEYSTORE_PASSWORD }}
+          VEYTRIX_KEY_ALIAS: ${{ secrets.VEYTRIX_KEY_ALIAS }}
+          VEYTRIX_KEY_PASSWORD: ${{ secrets.VEYTRIX_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VEYTRIX_KEYSTORE_BASE64:-}" ]] || missing+=(VEYTRIX_KEYSTORE_BASE64)
+          [[ -n "${VEYTRIX_KEYSTORE_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEYSTORE_PASSWORD)
+          [[ -n "${VEYTRIX_KEY_ALIAS:-}" ]] || missing+=(VEYTRIX_KEY_ALIAS)
+          [[ -n "${VEYTRIX_KEY_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEY_PASSWORD)
+          if ((${#missing[@]})); then
+            printf '::error title=Release signing blocker::Missing repository Actions secrets: %s\n' "${missing[*]}"
+            echo "VEYTRIX_RELEASE_SIGNING_BLOCKED: ${missing[*]}" >&2
+            exit 1
+          fi
+          gradle --no-daemon :autopilot:assembleRelease
+
+      - name: Verify APK identity and integrity
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          debug_apk='autopilot/build/outputs/apk/debug/autopilot-debug.apk'
+          release_apk='autopilot/build/outputs/apk/release/autopilot-release.apk'
+          test -s "$debug_apk"
+          test -s "$release_apk"
+          sha256sum "$debug_apk" | tee autopilot/build/outputs/apk/debug/autopilot-debug.apk.sha256
+          sha256sum "$release_apk" | tee autopilot/build/outputs/apk/release/autopilot-release.apk.sha256
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$release_apk" > /tmp/veytrix-release-badging.txt
+          grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-release-badging.txt
+          grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-release-badging.txt
+
+      - name: Upload APKs
+        uses: actions/upload-artifact@v7
+        with:
+          name: Veytrix-Autopilot-APK
+          path: |
+            android/autopilot/build/outputs/apk/debug/autopilot-debug.apk
+            android/autopilot/build/outputs/apk/release/autopilot-release.apk
+            android/autopilot/build/outputs/apk/debug/autopilot-debug.apk.sha256
+            android/autopilot/build/outputs/apk/release/autopilot-release.apk.sha256
+          if-no-files-found: error
+          retention-days: 30
