@@ -47,7 +47,7 @@ public final class VeytrixAutopilotClient {
     private static final String PREF_TOKEN = "token_ciphertext";
     private static final String PREF_IV = "token_iv";
     private static final String PREF_TARGET = "target_repository";
-    private static final String DEFAULT_TARGET = "fahadsoomro123/nexusnova-app";
+    private static final String DEFAULT_TARGET = "owner/repository";
 
     public static final class RunInfo {
         public final long id;
