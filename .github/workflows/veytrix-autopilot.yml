@@ -44,6 +44,7 @@ env:
   MAX_FREE_RERUNS: '2'
   MAX_VERIFICATION_HANDOFFS: '2'
 
+jobs:
   manual-mission:
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
