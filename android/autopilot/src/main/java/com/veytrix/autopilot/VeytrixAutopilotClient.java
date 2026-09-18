@@ -133,6 +133,11 @@ public final class VeytrixAutopilotClient {
         prefs.edit().remove(PREF_TOKEN).remove(PREF_IV).apply();
     }
 
+    public void saveTargetRepository(String targetRepository) {
+        if (!isRepoName(targetRepository)) throw new IllegalArgumentException("Target repository must look like owner/name");
+        prefs.edit().putString(PREF_TARGET, targetRepository.trim()).apply();
+    }
+
     public void verifyConnection(String tokenOverride, String targetRepository, SimpleCallback<Verification> callback) {
         executor.execute(() -> {
             try {
