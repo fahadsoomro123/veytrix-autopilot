@@ -3,12 +3,14 @@ package com.veytrix.autopilot;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.InputType;
@@ -54,6 +56,12 @@ public final class MainActivity extends Activity {
     private LinearLayout drawer;
     private String mission = "";
     private boolean deepMode = true;
+    private VeytrixAutopilotClient autopilotClient;
+    private TextView activeRunStatusView;
+    private TextView activeRunMetaView;
+    private Button activeRunOpenButton;
+    private String activeRunUrl = "";
+    private long activeRunId = 0L;
     private boolean voiceListening = false;
 
     private boolean autoExecute = true;
@@ -68,6 +76,7 @@ public final class MainActivity extends Activity {
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        autopilotClient = new VeytrixAutopilotClient(this);
         configureWindow();
         buildShell();
         showHome();
@@ -272,7 +281,23 @@ public final class MainActivity extends Activity {
 
     private void showProfile(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Profile"),wrap());LinearLayout card=cardColumn();card.setGravity(Gravity.CENTER_HORIZONTAL);card.setPadding(dp(16),dp(16),dp(16),dp(16));card.addView(new IconView(this,"profileLarge"),new LinearLayout.LayoutParams(dp(80),dp(80)));card.addView(text("Fahad Hussain",19,INK,true),marginTop(8));card.addView(text("@fahadsoomro123",9,MUTED,false),wrap());col.addView(card,marginBottom(9));LinearLayout stats=cardRow();stats.addView(stat("128","Missions"),weightChild());stats.addView(stat("24","Projects"),weightChild());stats.addView(stat("98%","Success"),weightChild());stats.addView(stat("2.4x","Faster"),weightChild());col.addView(stats,marginBottom(9));LinearLayout account=cardColumn();account.addView(actionListRow("Account Information","Profile and account details","profile",v->toast("Account information opened")),rowHeight());account.addView(actionListRow("Mission History","View previous missions","activity",v->navigate(1)),rowHeight());account.addView(actionListRow("Usage Statistics","Workspace activity","results",v->navigate(2)),rowHeight());col.addView(account);pageHost.addView(col,full());}
 
-    private void showSettings(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Settings"),wrap());col.addView(text("Configure your VEYTRIX experience.",10,MUTED,false),marginBottom(8));LinearLayout card=cardColumn();card.addView(actionListRow("General","App behavior and language","settings",v->toast("General settings opened")),rowHeight());card.addView(actionListRow("Appearance","Theme, colors and display","appearance",v->toast("Appearance settings opened")),rowHeight());card.addView(actionListRow("AI & Mission","Model settings and execution","spark",v->showControl()),rowHeight());card.addView(liveRow("Notifications","Updates and alerts","notifications",notifications,"bell"),rowHeight());card.addView(actionListRow("Privacy","Data and security","privacy",v->toast("Privacy settings opened")),rowHeight());card.addView(actionListRow("About","VEYTRIX version 1.0.1","info",v->toast("VEYTRIX Autopilot")),rowHeight());card.addView(actionListRow("Support","Get help and contact us","support",v->toast("Support is ready for connection")),rowHeight());col.addView(card);pageHost.addView(col,full());}
+    private void showSettings(){
+        clearPage();
+        LinearLayout col=pageColumn();
+        col.addView(topBar("Settings"),wrap());
+        col.addView(text("Configure your VEYTRIX experience.",10,MUTED,false),marginBottom(8));
+        LinearLayout card=cardColumn();
+        String connectionState=autopilotClient.hasToken()?"GitHub connected":"GitHub setup required";
+        card.addView(actionListRow("GitHub Connection",connectionState,"privacy",v->showConnectionDialog()),rowHeight());
+        card.addView(actionListRow("General","App behavior and language","settings",v->toast("General settings opened")),rowHeight());
+        card.addView(actionListRow("Appearance","Theme, colors and display","appearance",v->toast("Appearance settings opened")),rowHeight());
+        card.addView(actionListRow("AI & Mission","Model settings and execution","spark",v->showControl()),rowHeight());
+        card.addView(liveRow("Notifications","Updates and alerts","notifications",notifications,"bell"),rowHeight());
+        card.addView(actionListRow("Privacy","Data and security","privacy",v->toast("Privacy settings opened")),rowHeight());
+        card.addView(actionListRow("About","VEYTRIX version 1.0.1","info",v->toast("VEYTRIX Autopilot")),rowHeight());
+        card.addView(actionListRow("Support","Get help and contact us","support",v->toast("Support is ready for connection")),rowHeight());
+        pageHost.addView(card,full());
+    }
 
     private void showVoice(){clearPage();LinearLayout col=pageColumn();col.setGravity(Gravity.CENTER_HORIZONTAL);col.addView(topBar("Voice Command"),wrap());col.addView(text("Create and control a mission with your voice.",10,MUTED,false),marginBottom(10));VoiceView voice=new VoiceView(this);voice.setOnClickListener(v->{voiceListening=!voiceListening;voice.setListening(voiceListening);toast(voiceListening?"Listening…":"Voice input stopped");});col.addView(voice,new LinearLayout.LayoutParams(dp(220),dp(220)));col.addView(text(voiceListening?"Listening…":"Tap to speak",21,INK,true),marginTop(8));col.addView(text("Give a voice command to create your mission.",9,MUTED,false),wrap());pageHost.addView(col,full());}
 
@@ -306,7 +331,161 @@ public final class MainActivity extends Activity {
         private void paint(Canvas c,String t,float x,float y,float size,int color,boolean bold,boolean center){p.setTypeface(bold?Typeface.create(Typeface.DEFAULT,Typeface.BOLD):Typeface.DEFAULT);p.setTextSize(size);p.setColor(color);p.setTextAlign(center?Paint.Align.CENTER:Paint.Align.LEFT);c.drawText(t,x,y,p);p.setTextAlign(Paint.Align.LEFT);}
     }
 
-    private void launchMission(){HomeView hv=null;if(pageHost.getChildCount()>0&&pageHost.getChildAt(0) instanceof HomeView)hv=(HomeView)pageHost.getChildAt(0);if(hv!=null){mission=hv.input.getText().toString().trim();if(mission.isEmpty()){hv.input.requestFocus();((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(hv.input,InputMethodManager.SHOW_IMPLICIT);toast("Write a mission first");return;}}showDetails(mission.isEmpty()?"New Mission":mission,"Mission submitted from VEYTRIX Home","Running");}
+    private void launchMission(){
+        HomeView hv=null;
+        if(pageHost.getChildCount()>0 && pageHost.getChildAt(0) instanceof HomeView) hv=(HomeView)pageHost.getChildAt(0);
+        if(hv!=null){
+            mission=hv.input.getText().toString().trim();
+            if(mission.isEmpty()){
+                hv.input.requestFocus();
+                ((InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(hv.input,InputMethodManager.SHOW_IMPLICIT);
+                toast("Write a mission first");
+                return;
+            }
+        }
+        if(!autopilotClient.hasToken()){
+            showConnectionDialog();
+            return;
+        }
+        showLiveMission(mission);
+        final String target=autopilotClient.getTargetRepository();
+        autopilotClient.startMission(mission,target,"main","auto","2",new VeytrixAutopilotClient.Callback(){
+            @Override public void onStarted(){ updateLiveMessage("Connecting to the VEYTRIX control plane…"); }
+            @Override public void onRunLocated(VeytrixAutopilotClient.RunInfo run){
+                activeRunId=run.id; activeRunUrl=run.htmlUrl; updateLiveRun(run);
+            }
+            @Override public void onRunUpdated(VeytrixAutopilotClient.RunInfo run){ updateLiveRun(run); }
+            @Override public void onCompleted(VeytrixAutopilotClient.RunInfo run){
+                updateLiveRun(run);
+                toast(run.isSuccessful()?"Mission verified successfully":"Mission finished with a blocker");
+            }
+            @Override public void onError(String message){ updateLiveMessage("Mission error: "+message); if(activeRunOpenButton!=null)activeRunOpenButton.setVisibility(View.GONE); }
+        });
+    }
+
+    private void showConnectionDialog(){
+        LinearLayout form=new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(18),dp(4),dp(18),dp(4));
+
+        EditText target= new EditText(this);
+        target.setSingleLine(true);
+        target.setText(autopilotClient.getTargetRepository());
+        target.setHint("owner/repository");
+        target.setTextSize(13);
+        target.setPadding(dp(12),0,dp(12),0);
+        target.setBackground(roundDrawable(Color.rgb(244,248,253),10,BORDER));
+        form.addView(target,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        Space gap=new Space(this);
+        form.addView(gap,new LinearLayout.LayoutParams(1,dp(10)));
+
+        EditText token=new EditText(this);
+        token.setSingleLine(true);
+        token.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        token.setHint(autopilotClient.hasToken()?"Saved token • leave blank to reuse":"GitHub fine-grained token");
+        token.setTextSize(13);
+        token.setPadding(dp(12),0,dp(12),0);
+        token.setBackground(roundDrawable(Color.rgb(244,248,253),10,BORDER));
+        form.addView(token,new LinearLayout.LayoutParams(-1,dp(48)));
+
+        TextView note=text("The token is encrypted locally with Android Keystore. It is never committed to the repository.",9,MUTED,false);
+        note.setPadding(0,dp(10),0,0);
+        form.addView(note,wrap());
+
+        AlertDialog dialog=new AlertDialog.Builder(this)
+                .setTitle("Connect VEYTRIX")
+                .setView(form)
+                .setNegativeButton("CANCEL",null)
+                .setPositiveButton("VERIFY & SAVE",null)
+                .create();
+        dialog.setOnShowListener(v->dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(btn->{
+            String repo=target.getText().toString().trim();
+            String typed=token.getText().toString().trim();
+            if(repo.isEmpty() || !repo.matches("[^/\\\\s]+/[^/\\\\s]+")){
+                target.setError("Use owner/repository");
+                return;
+            }
+            try{
+                autopilotClient.saveTargetRepository(repo);
+            }catch(Exception e){
+                target.setError(e.getMessage());
+                return;
+            }
+            autopilotClient.verifyConnection(typed,repo,new VeytrixAutopilotClient.SimpleCallback<VeytrixAutopilotClient.Verification>(){
+                @Override public void onSuccess(VeytrixAutopilotClient.Verification value){
+                    dialog.dismiss();
+                    toast("Connected as @"+value.login);
+                    showSettings();
+                }
+                @Override public void onError(String message){ token.setError(message); }
+            });
+        }));
+        dialog.show();
+    }
+
+    private void showLiveMission(String missionText){
+        clearPage();
+        LinearLayout col=pageColumn();
+        col.addView(topBar("Live Mission"),wrap());
+        col.addView(text("Autonomous control-plane execution",10,MUTED,false),marginBottom(9));
+
+        LinearLayout card=cardColumn();
+        card.addView(text("MISSION",9,PURPLE,true),marginBottom(4));
+        card.addView(text(missionText,14,INK,true),marginBottom(9));
+        activeRunStatusView=text("Dispatching…",11,GREEN,true);
+        card.addView(activeRunStatusView,marginBottom(4));
+        activeRunMetaView=text("Preparing secure GitHub workflow dispatch",9,MUTED,false);
+        card.addView(activeRunMetaView,marginBottom(8));
+
+        activeRunOpenButton=button("OPEN LIVE RUN",BLUE,WHITE);
+        activeRunOpenButton.setVisibility(View.GONE);
+        activeRunOpenButton.setOnClickListener(v->{
+            if(!activeRunUrl.isEmpty()) startActivity(new Intent(Intent.ACTION_VIEW,Uri.parse(activeRunUrl)));
+        });
+        card.addView(activeRunOpenButton,marginBottom(8));
+        col.addView(card,marginBottom(9));
+
+        LinearLayout stages=cardColumn();
+        stages.addView(text("EXECUTION PIPELINE",9,INK,true),marginBottom(4));
+        stages.addView(stageRow("Understanding","Mission received by control plane",false),rowHeight());
+        stages.addView(stageRow("Planning","Deterministic inspection and engine selection",false),rowHeight());
+        stages.addView(stageRow("Executing","AI or deterministic mission execution",false),rowHeight());
+        stages.addView(stageRow("Verifying","Tests, artifact checks and evidence",false),rowHeight());
+        stages.addView(stageRow("Completed","Final result returned to device",false));
+        col.addView(stages,marginBottom(9));
+
+        LinearLayout actions=new LinearLayout(this);
+        actions.setOrientation(LinearLayout.HORIZONTAL);
+        Button home=button("Back Home",Color.rgb(239,246,255),INK);
+        home.setOnClickListener(v->navigate(0));
+        Button settings=button("Connection",Color.rgb(239,246,255),INK);
+        settings.setOnClickListener(v->showSettings());
+        actions.addView(home,new LinearLayout.LayoutParams(0,dp(44),1));
+        space(actions,8,0);
+        actions.addView(settings,new LinearLayout.LayoutParams(0,dp(44),1));
+        col.addView(actions);
+        pageHost.addView(scrollWrap(col),full());
+    }
+
+    private void updateLiveMessage(String message){
+        if(activeRunStatusView!=null) activeRunStatusView.setText(message);
+        if(activeRunMetaView!=null) activeRunMetaView.setText("VEYTRIX control plane");
+    }
+
+    private void updateLiveRun(VeytrixAutopilotClient.RunInfo run){
+        if(activeRunStatusView==null || activeRunMetaView==null) return;
+        String status=run.isFinished() ? ("COMPLETED • "+(run.conclusion.isEmpty()?"UNKNOWN":run.conclusion.toUpperCase())) : run.status.toUpperCase();
+        activeRunStatusView.setText(status);
+        activeRunMetaView.setText("Run #"+run.number+" • updated "+run.updatedAt);
+        activeRunUrl=run.htmlUrl;
+        if(activeRunOpenButton!=null) activeRunOpenButton.setVisibility(run.htmlUrl.isEmpty()?View.GONE:View.VISIBLE);
+    }
+
+    @Override protected void onDestroy(){
+        if(autopilotClient!=null) autopilotClient.shutdown();
+        super.onDestroy();
+    }
 
     private LinearLayout pageColumn(){LinearLayout col=new LinearLayout(this);col.setOrientation(LinearLayout.VERTICAL);return col;}
     private ScrollView scrollWrap(View child){ScrollView s=new ScrollView(this);s.setFillViewport(true);s.setVerticalScrollBarEnabled(false);s.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);if(child.getParent()!=null)((ViewGroup)child.getParent()).removeView(child);s.addView(child);return s;}
