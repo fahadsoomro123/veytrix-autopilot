@@ -3,6 +3,8 @@ package com.veytrix.autopilot;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Context;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.content.Intent;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -13,6 +15,7 @@ import android.graphics.Typeface;
 import android.net.Uri;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.speech.RecognizerIntent;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -20,6 +23,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
+import java.util.ArrayList;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
@@ -62,6 +66,7 @@ public final class MainActivity extends Activity {
     private Button activeRunOpenButton;
     private String activeRunUrl = "";
     private long activeRunId = 0L;
+    private static final int REQUEST_VOICE = 4107;
     private boolean voiceListening = false;
 
     private boolean autoExecute = true;
@@ -299,7 +304,22 @@ public final class MainActivity extends Activity {
         pageHost.addView(card,full());
     }
 
-    private void showVoice(){clearPage();LinearLayout col=pageColumn();col.setGravity(Gravity.CENTER_HORIZONTAL);col.addView(topBar("Voice Command"),wrap());col.addView(text("Create and control a mission with your voice.",10,MUTED,false),marginBottom(10));VoiceView voice=new VoiceView(this);voice.setOnClickListener(v->{voiceListening=!voiceListening;voice.setListening(voiceListening);toast(voiceListening?"Listening…":"Voice input stopped");});col.addView(voice,new LinearLayout.LayoutParams(dp(220),dp(220)));col.addView(text(voiceListening?"Listening…":"Tap to speak",21,INK,true),marginTop(8));col.addView(text("Give a voice command to create your mission.",9,MUTED,false),wrap());pageHost.addView(col,full());}
+    private void showVoice(){
+        clearPage();
+        LinearLayout col=pageColumn();
+        col.setGravity(Gravity.CENTER_HORIZONTAL);
+        col.addView(topBar("Voice Command"),wrap());
+        col.addView(text("Create and control a mission with your voice.",10,MUTED,false),marginBottom(10));
+        VoiceView voice=new VoiceView(this);
+        voice.setOnClickListener(v->{voiceListening=!voiceListening;voice.setListening(voiceListening);if(voiceListening)startVoiceInput();});
+        col.addView(voice,new LinearLayout.LayoutParams(dp(220),dp(220)));
+        col.addView(text(voiceListening?"Listening…":"Tap to speak",21,INK,true),marginTop(8));
+        col.addView(text("Your speech becomes a mission prompt on the Home screen.",9,MUTED,false),wrap());
+        Button start=button("START VOICE INPUT",NAVY,WHITE);
+        start.setOnClickListener(v->{voiceListening=true;voice.setListening(true);startVoiceInput();});
+        col.addView(start,new LinearLayout.LayoutParams(dp(230),dp(48)));
+        pageHost.addView(col,full());
+    }
 
     private void showDetails(String title,String desc,String status){clearPage();LinearLayout col=pageColumn();col.addView(topBar(title),wrap());TextView s=text(status,9,status.equals("Failed")?RED:GREEN,true);s.setPadding(dp(8),dp(5),dp(8),dp(5));s.setBackground(roundDrawable(Color.argb(24,Color.red(status.equals("Failed")?RED:GREEN),Color.green(status.equals("Failed")?RED:GREEN),Color.blue(status.equals("Failed")?RED:GREEN)),9,Color.TRANSPARENT));col.addView(s,marginBottom(8));LinearLayout tl=cardColumn();tl.addView(stageRow("Planning","Analyzing requirements",true));tl.addView(stageRow("Executing","Generating code and files",true));tl.addView(stageRow("Verifying","Running tests and validation",false));tl.addView(stageRow("Finalizing","Preparing mission results",false));col.addView(tl,marginBottom(10));LinearLayout output=cardColumn();output.addView(text("Live output",11,INK,true));output.addView(text("$ Initializing project structure…\n$ Creating API endpoints…\n$ Setting database models…\n$ Generating tests…\n$ Running validation…",9,MUTED,false),marginTop(8));col.addView(output,marginBottom(10));LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);Button pause=button("Pause",Color.rgb(239,246,255),INK);Button cancel=button("Cancel",Color.rgb(255,239,242),RED);pause.setOnClickListener(v->toast("Mission paused"));cancel.setOnClickListener(v->toast("Mission cancelled"));actions.addView(pause,new LinearLayout.LayoutParams(0,dp(42),1));space(actions,8,0);actions.addView(cancel,new LinearLayout.LayoutParams(0,dp(42),1));col.addView(actions);pageHost.addView(col,full());}
 
@@ -361,6 +381,56 @@ public final class MainActivity extends Activity {
             }
             @Override public void onError(String message){ updateLiveMessage("Mission error: "+message); if(activeRunOpenButton!=null)activeRunOpenButton.setVisibility(View.GONE); }
         });
+    }
+
+    private void startVoiceInput(){
+        if(checkSelfPermission(Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},REQUEST_VOICE);
+            return;
+        }
+        try{
+            Intent intent=new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+            intent.putExtra(RecognizerIntent.EXTRA_PROMPT,"Speak your mission for VEYTRIX");
+            startActivityForResult(intent,REQUEST_VOICE);
+        }catch(Exception e){
+            voiceListening=false;
+            toast("Voice input is unavailable on this device");
+        }
+    }
+
+    @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+        super.onActivityResult(requestCode,resultCode,data);
+        if(requestCode!=REQUEST_VOICE)return;
+        voiceListening=false;
+        if(resultCode==RESULT_OK && data!=null){
+            ArrayList<String> results=data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
+            if(results!=null && !results.isEmpty() && !results.get(0).trim().isEmpty()){
+                String spoken=results.get(0).trim();
+                showHome();
+                View child=pageHost.getChildAt(0);
+                if(child instanceof HomeView){
+                    HomeView hv=(HomeView)child;
+                    hv.input.setText(spoken);
+                    hv.input.setSelection(hv.input.length());
+                }
+                toast("Voice mission captured");
+                return;
+            }
+        }
+        toast("No voice mission captured");
+    }
+
+    @Override public void onRequestPermissionsResult(int requestCode,String[] permissions,int[] grantResults){
+        super.onRequestPermissionsResult(requestCode,permissions,grantResults);
+        if(requestCode==REQUEST_VOICE){
+            if(grantResults.length>0 && grantResults[0]==PackageManager.PERMISSION_GRANTED){
+                startVoiceInput();
+            }else{
+                voiceListening=false;
+                toast("Microphone permission is required for voice missions");
+            }
+        }
     }
 
     private void showConnectionDialog(){
