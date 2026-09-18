@@ -10,7 +10,7 @@ on:
       target_repository:
         description: 'Target repository owner/name'
         required: true
-        default: 'fahadsoomro123/nexusnova-app'
+        default: 'owner/repository'
         type: string
       branch:
         description: 'Target branch'
