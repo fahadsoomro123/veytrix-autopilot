@@ -374,7 +374,16 @@ public final class MainActivity extends Activity {
                 new VeytrixActivityView(
                         this,
                         autopilotClient,
-                        () -> showConnectionDialog()
+                        new VeytrixActivityView.Host() {
+                            @Override public void openConnection() {
+                                showConnectionDialog();
+                            }
+
+                            @Override public void openRunDetails(
+                                    VeytrixAutopilotClient.RunInfo run) {
+                                showRunDetails(run);
+                            }
+                        }
                 ),
                 full()
         );
