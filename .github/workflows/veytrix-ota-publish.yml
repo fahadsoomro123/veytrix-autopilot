@@ -120,25 +120,40 @@ jobs:
           test -n "$version_code"
           sha256="$(sha256sum "$apk" | awk '{print $1}')"
           size="$(stat -c '%s' "$apk")"
+          build_commit="$(git rev-parse HEAD)"
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Release tag must use a semantic version tag such as v1.0.1 or v1.0.1-rc1." >&2
+            exit 1
+          fi
           mkdir -p autopilot/build/outputs/apk/release
           cp "$apk" autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk
-          cat > autopilot/build/outputs/apk/release/update.json <<EOF
-          {
-            "packageName": "$package_name",
-            "versionName": "$version_name",
-            "versionCode": $version_code,
-            "tag": "$RELEASE_TAG",
-            "releaseName": "$RELEASE_NAME",
-            "apkAsset": "veytrix-autopilot-release.apk",
-            "sha256": "$sha256",
-            "sizeBytes": $size,
-            "targetRef": "$TARGET_REF",
-            "commit": "$(git rev-parse HEAD)"
-          }
-          EOF
+          jq -n \
+            --arg packageName "$package_name" \
+            --arg versionName "$version_name" \
+            --arg tag "$RELEASE_TAG" \
+            --arg releaseName "$RELEASE_NAME" \
+            --arg apkAsset "veytrix-autopilot-release.apk" \
+            --arg sha256 "$sha256" \
+            --arg targetRef "$TARGET_REF" \
+            --arg commit "$build_commit" \
+            --argjson versionCode "$version_code" \
+            --argjson sizeBytes "$size" \
+            '{
+              packageName: $packageName,
+              versionName: $versionName,
+              versionCode: $versionCode,
+              tag: $tag,
+              releaseName: $releaseName,
+              apkAsset: $apkAsset,
+              sha256: $sha256,
+              sizeBytes: $sizeBytes,
+              targetRef: $targetRef,
+              commit: $commit
+            }' > autopilot/build/outputs/apk/release/update.json
           echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
           echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+          echo "build_commit=$build_commit" >> "$GITHUB_OUTPUT"
 
       - name: Create or update GitHub release
         env:
