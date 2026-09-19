@@ -21,7 +21,7 @@ publish="$ROOT/.github/workflows/veytrix-ota-publish.yml"
 require_text() {
   local pattern="$1"
   local file="$2"
-  if ! grep -Fq "$pattern" "$file"; then
+  if ! grep -Fq -- "$pattern" "$file"; then
     echo "OTA contract missing: [$pattern] in $file" >&2
     exit 1
   fi
