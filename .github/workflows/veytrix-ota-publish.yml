@@ -155,34 +155,29 @@ jobs:
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
           echo "build_commit=$build_commit" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update GitHub release
+      - name: Create immutable GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag }}
           RELEASE_NAME: ${{ inputs.release_name }}
           RELEASE_NOTES: ${{ inputs.release_notes }}
+          BUILD_COMMIT: ${{ steps.metadata.outputs.build_commit }}
         working-directory: android
         shell: bash
         run: |
           set -euo pipefail
           printf '%s\n' "$RELEASE_NOTES" > /tmp/veytrix-release-notes.txt
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" \
-              autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk \
-              autopilot/build/outputs/apk/release/update.json \
-              --clobber
-            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt
-          else
-            args=("$RELEASE_TAG" \
-              "autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk#VEYTRIX Android APK" \
-              "autopilot/build/outputs/apk/release/update.json#OTA metadata")
-            if [[ '${{ inputs.prerelease }}' == 'true' ]]; then
-              gh release create "${args[@]}" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt --target "${{ inputs.target_ref }}" --prerelease
-            else
-              gh release create "${args[@]}" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt --target "${{ inputs.target_ref }}"
-            fi
+            echo "Release tag $RELEASE_TAG already exists; refusing to replace published OTA assets." >&2
+            exit 1
           fi
-
+          gh release create "$RELEASE_TAG" \
+            autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk#VEYTRIX Android APK \
+            autopilot/build/outputs/apk/release/update.json#OTA metadata \
+            --title "$RELEASE_NAME" \
+            --notes-file /tmp/veytrix-release-notes.txt \
+            --target "$BUILD_COMMIT" \
+            $( [[ '${{ inputs.prerelease }}' == 'true' ]] && printf '%s' '--prerelease' )
       - name: Record OTA release result
         shell: bash
         run: |
@@ -192,6 +187,7 @@ jobs:
             echo '- Version: ${{ steps.metadata.outputs.version_name }} (${{ steps.metadata.outputs.version_code }})'
             echo '- Tag: ${{ inputs.tag }}'
             echo '- APK SHA-256: ${{ steps.metadata.outputs.sha256 }}'
+            echo '- Built commit: ${{ steps.metadata.outputs.build_commit }}'
             echo '- Release assets: APK + update.json'
             echo '- User-approved Android PackageInstaller remains the client install path'
           } >> "$GITHUB_STEP_SUMMARY"
