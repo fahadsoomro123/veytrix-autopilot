@@ -62,6 +62,20 @@ function readablePath(p) {
   }
 }
 
+function assertContained(full, allowMissingLeaf = false) {
+  const targetRoot = fs.realpathSync(TARGET);
+  const candidate = allowMissingLeaf
+    ? path.resolve(full)
+    : fs.realpathSync(full);
+  const candidateForCheck = allowMissingLeaf
+    ? fs.realpathSync(path.dirname(candidate))
+    : candidate;
+  if (candidateForCheck !== targetRoot && !candidateForCheck.startsWith(targetRoot + path.sep)) {
+    throw new Error('path resolves outside the target repository');
+  }
+  return candidate;
+}
+
 function assertTextContent(content) {
   if (typeof content !== 'string') throw new Error('content must be text');
   if (Buffer.byteLength(content, 'utf8') > MAX_FILE_BYTES) {
@@ -87,6 +101,7 @@ function walk(dir, depth = 0, out = []) {
   if (depth > 6 || out.length >= 500) return out;
   for (const entry of fs.readdirSync(dir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
     if (entry.name === '.git' || entry.name === '.github' || entry.name === 'node_modules' || entry.name === 'build' || entry.name === '.gradle') continue;
+    if (entry.isSymbolicLink()) continue;
     const full = path.join(dir, entry.name);
     const rp = rel(full);
     if (entry.isDirectory()) walk(full, depth + 1, out);
@@ -101,6 +116,7 @@ function readFileTool(args) {
   readablePath(p);
   const full = path.join(TARGET, p);
   if (!fs.existsSync(full) || !fs.statSync(full).isFile()) throw new Error('file not found');
+  assertContained(full);
   const content = fs.readFileSync(full, 'utf8');
   if (Buffer.byteLength(content, 'utf8') > MAX_READ_BYTES) {
     throw new Error('file is larger than the bounded read limit; narrow the request or use search_text');
@@ -119,6 +135,7 @@ function searchTool(args) {
   if (root) readablePath(root);
   const base = root ? path.join(TARGET, root) : TARGET;
   if (!fs.existsSync(base)) throw new Error('search path not found');
+  assertContained(base);
   const candidates = fs.statSync(base).isFile() ? [base] : walk(base);
   const results = [];
   for (const candidate of candidates) {
@@ -149,6 +166,8 @@ function writeFileTool(args) {
   assertTextContent(args.content);
   const full = path.join(TARGET, p);
   const exists = fs.existsSync(full);
+  if (exists) assertContained(full);
+  else assertContained(full, true);
   const current = exists ? fs.readFileSync(full, 'utf8') : '';
   const expected = String(args.expected_sha256 || '');
   if (exists && sha256(current) !== expected) {
