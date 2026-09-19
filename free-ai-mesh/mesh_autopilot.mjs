@@ -194,6 +194,8 @@ function runVerification(check) {
         if (fs.existsSync(verifier)) output.push(run('bash', [verifier, TARGET]));
         output.push(run('gradle', ['--no-daemon', '--project-dir', 'android', ':autopilot:assembleDebug']));
       }
+      const policy = path.join(CORE, 'scripts', 'verify_veytrix_mesh_patch_policy.sh');
+      if (fs.existsSync(policy)) output.push(run('bash', [policy, TARGET]));
       return { check, output: output.join('\n') };
     }
     default:
