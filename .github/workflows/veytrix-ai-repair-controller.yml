@@ -36,12 +36,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
-      GH_TOKEN: ${{ github.token }}
       RUN_ID: ${{ github.event.workflow_run.id }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout controller core
@@ -60,7 +58,22 @@ jobs:
           fetch-depth: 100
           persist-credentials: false
 
+      - name: Detect OpenAI availability
+        id: ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Collect sanitized failure evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -100,6 +113,8 @@ jobs:
 
       - name: Deterministic transient recovery
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification == 'transient'
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -128,20 +143,20 @@ jobs:
           fi
 
       - name: Prepare Android verification toolchain
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != '' && hashFiles('target/android/settings.gradle.kts') != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true' && hashFiles('target/android/settings.gradle.kts') != ''
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Install Gradle verification toolchain
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != '' && hashFiles('target/android/settings.gradle.kts') != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true' && hashFiles('target/android/settings.gradle.kts') != ''
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.13'
 
       - name: AI repair pass 1
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true'
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -179,8 +194,8 @@ jobs:
             Android identity proof when applicable:
             - APK: android/autopilot/build/outputs/apk/debug/autopilot-debug.apk
             - package: com.veytrix.autopilot
-            - versionCode: 10000
-            - versionName: 1.0.0
+            - versionCode: 10001
+            - versionName: 1.0.1
             - launcher: com.veytrix.autopilot.MainActivity
             - legacy assets/veytrix_preview.html must not be packaged
 
@@ -198,7 +213,7 @@ jobs:
       - name: Verify repair pass 1
         id: verify_pass1
         continue-on-error: true
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true'
         working-directory: target
         shell: bash
         run: |
@@ -223,7 +238,7 @@ jobs:
               AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
               test -x "$AAPT"
               "$AAPT" dump badging "$apk" > /tmp/veytrix-repair-pass1-badging.txt
-              grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-repair-pass1-badging.txt
+              grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-repair-pass1-badging.txt
               grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-repair-pass1-badging.txt
               if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
                 echo 'Legacy WebView preview asset is still packaged.' >&2
@@ -237,7 +252,7 @@ jobs:
           exit "$status"
 
       - name: AI repair pass 2
-        if: steps.verify_pass1.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        if: steps.verify_pass1.outcome == 'failure' && steps.ai.outputs.available == 'true'
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -270,7 +285,7 @@ jobs:
       - name: Verify repair pass 2
         id: verify_pass2
         continue-on-error: true
-        if: steps.verify_pass1.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        if: steps.verify_pass1.outcome == 'failure' && steps.ai.outputs.available == 'true'
         working-directory: target
         shell: bash
         run: |
@@ -288,7 +303,7 @@ jobs:
               AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
               test -x "$AAPT"
               "$AAPT" dump badging "$apk" > /tmp/veytrix-repair-pass2-badging.txt
-              grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-repair-pass2-badging.txt
+              grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-repair-pass2-badging.txt
               grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-repair-pass2-badging.txt
               if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
                 echo 'Legacy WebView preview asset is still packaged.' >&2
@@ -342,6 +357,7 @@ jobs:
       - name: Publish verified repair with stale-HEAD protection
         if: steps.verified.outputs.publish == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           FINGERPRINT: ${{ steps.fingerprint.outputs.fingerprint }}
         working-directory: target
         shell: bash
@@ -357,7 +373,7 @@ jobs:
           git push origin "HEAD:${HEAD_BRANCH}"
 
       - name: Report recovery blocked or exhausted
-        if: always() && (steps.blocker.outputs.blocked == 'true' || (steps.guard.outcome == 'success' && steps.guard.outputs.repair_allowed == 'false') || (steps.verified.outcome == 'success' && steps.verified.outputs.publish == 'false') || (steps.fingerprint.outputs.classification != 'transient' && env.OPENAI_API_KEY == ''))
+        if: always() && (steps.blocker.outputs.blocked == 'true' || (steps.guard.outcome == 'success' && steps.guard.outputs.repair_allowed == 'false') || (steps.verified.outcome == 'success' && steps.verified.outputs.publish == 'false') || (steps.fingerprint.outputs.classification != 'transient' && steps.ai.outputs.available != 'true'))
         shell: bash
         run: |
           set -euo pipefail

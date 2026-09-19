@@ -6,7 +6,20 @@ on:
       - 'android/**'
       - 'scripts/**'
       - 'docs/ANDROID-RELEASE.md'
+      - 'scripts/verify_veytrix_control_plane_contract.sh'
+      - 'scripts/verify_veytrix_android_security_contract.sh'
       - '.github/workflows/build-android.yml'
+      - '.github/workflows/veytrix-autopilot.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'scripts/**'
+      - 'docs/ANDROID-RELEASE.md'
+      - 'scripts/verify_veytrix_control_plane_contract.sh'
+      - 'scripts/verify_veytrix_android_security_contract.sh'
+      - '.github/workflows/build-android.yml'
+      - '.github/workflows/veytrix-autopilot.yml'
+
   workflow_dispatch:
     inputs:
       signed_release:
@@ -30,11 +43,23 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Verify VEYTRIX control-plane security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_control_plane_contract.sh .
+
       - name: Verify VEYTRIX native Android contract
         shell: bash
         run: |
           set -euo pipefail
           bash scripts/verify_veytrix_android_contract.sh .
+
+      - name: Verify VEYTRIX Android security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_android_security_contract.sh .
 
       - name: Set up Java 17
         uses: actions/setup-java@v6

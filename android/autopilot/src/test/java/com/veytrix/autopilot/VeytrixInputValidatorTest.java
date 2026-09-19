@@ -1,0 +1,49 @@
+package com.veytrix.autopilot;
+
+import static org.junit.Assert.assertThrows;
+
+import org.junit.Test;
+
+public final class VeytrixInputValidatorTest {
+
+    @Test
+    public void acceptsSafeInputs() {
+        VeytrixInputValidator.validateMission("Implement a secure Android control surface");
+        VeytrixInputValidator.validateRepository("fahadsoomro123/veytrix-autopilot");
+        VeytrixInputValidator.validateBranch("feature/secure-foundation");
+        VeytrixInputValidator.validateEngine("auto");
+        VeytrixInputValidator.validateVerificationDepth(2);
+    }
+
+    @Test
+    public void rejectsUnsafeRepository() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VeytrixInputValidator.validateRepository("owner/../repo")
+        );
+    }
+
+    @Test
+    public void rejectsUnsafeBranch() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VeytrixInputValidator.validateBranch("feature/../../main")
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VeytrixInputValidator.validateBranch("feature/branch name")
+        );
+    }
+
+    @Test
+    public void rejectsUnsafeExecutionControls() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VeytrixInputValidator.validateEngine("shell")
+        );
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> VeytrixInputValidator.validateVerificationDepth(3)
+        );
+    }
+}
