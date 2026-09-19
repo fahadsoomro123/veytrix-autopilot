@@ -11,6 +11,7 @@ on:
       - 'scripts/verify_veytrix_phase2_home_contract.sh'
       - 'scripts/verify_veytrix_phase2_primary_contract.sh'
       - 'scripts/verify_veytrix_mesh_contract.sh'
+      - 'free-ai-mesh/**'
       - 'scripts/verify_veytrix_phase3_secondary_contract.sh'
       - '.github/workflows/build-android.yml'
       - '.github/workflows/veytrix-autopilot.yml'
