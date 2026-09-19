@@ -88,7 +88,9 @@ public final class VeytrixUpdateView extends LinearLayout {
         release = text("", 12, VeytrixDesignTokens.TEXT_PRIMARY, false);
         release.setBackground(round(VeytrixDesignTokens.WHITE, 16, VeytrixDesignTokens.SILVER));
         release.setPadding(dp(12), dp(8), dp(12), dp(8));
-        addView(release, marginBottom(8));
+        release.setMaxLines(3);
+        release.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        addView(release, new LayoutParams(-1, dp(72)));
 
         sourceButton = secondaryButton("ALLOW VEYTRIX TO INSTALL UPDATES");
         sourceButton.setOnClickListener(v -> openInstallSourceSettings());
@@ -105,10 +107,12 @@ public final class VeytrixUpdateView extends LinearLayout {
         addView(installButton, marginBottom(8));
 
         TextView note = text(
-                "Only a GitHub release APK with a published SHA-256 digest and a signing certificate compatible with the installed VEYTRIX package can be staged. Installation is handed to Android PackageInstaller for user approval.",
+                "Verified GitHub release only. SHA-256 and signer checks run before Android PackageInstaller is invoked. Installation always requires Android user approval.",
                 10, VeytrixDesignTokens.TEXT_SECONDARY, false);
         note.setGravity(Gravity.CENTER);
-        addView(note, marginBottom(8));
+        note.setMaxLines(3);
+        note.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        addView(note, new LayoutParams(-1, dp(56)));
 
         View spacer = new View(context);
         addView(spacer, new LayoutParams(-1, 0, 1f));
@@ -145,9 +149,12 @@ public final class VeytrixUpdateView extends LinearLayout {
         client.checkLatest(new VeytrixUpdateClient.Callback<VeytrixUpdateClient.UpdateInfo>() {
             @Override public void onSuccess(VeytrixUpdateClient.UpdateInfo value) {
                 updateInfo = value;
+                String digestPreview = value.sha256.length() > 16
+                        ? value.sha256.substring(0, 16) + "…"
+                        : value.sha256;
                 release.setText("LATEST RELEASE: " + value.releaseName +
                         "\nTAG: " + value.tag +
-                        "\nSHA-256: " + value.sha256);
+                        "\nSHA-256: " + digestPreview);
                 status.setText("RELEASE FOUND — VERIFY BEFORE INSTALL");
                 status.setTextColor(VeytrixDesignTokens.VIOLET);
                 downloadButton.setEnabled(true);
