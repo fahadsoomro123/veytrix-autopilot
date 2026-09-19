@@ -27,6 +27,7 @@ public final class VeytrixAutopilotClient {
     private static final String WORKFLOW = "veytrix-autopilot.yml";
     private static final String API_HOST = "api.github.com";
     private static final String API_BASE = "https://" + API_HOST;
+    private static final int MAX_API_RESPONSE_CHARS = 4 * 1024 * 1024;
 
     private final VeytrixSecureStore secureStore;
     private final Context context;
@@ -487,6 +488,9 @@ public final class VeytrixAutopilotClient {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append('\n');
+                if (output.length() > MAX_API_RESPONSE_CHARS) {
+                    throw new SecurityException("GitHub API response is too large");
+                }
             }
         }
         return output.toString().trim();

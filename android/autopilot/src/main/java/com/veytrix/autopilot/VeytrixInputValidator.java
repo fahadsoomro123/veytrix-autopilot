@@ -42,7 +42,7 @@ public final class VeytrixInputValidator {
     }
 
     public static void validateEngine(String engine) {
-        if (!"auto".equals(engine) && !"github-free".equals(engine) && !"ai".equals(engine)) {
+        if (!"auto".equals(engine) && !"github-free".equals(engine) && !"ai".equals(engine) && !"mesh".equals(engine)) {
             throw new IllegalArgumentException("Unsupported execution engine");
         }
     }
