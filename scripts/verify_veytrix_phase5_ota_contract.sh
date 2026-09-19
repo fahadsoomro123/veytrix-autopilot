@@ -30,6 +30,8 @@ require_text() {
 require_text 'REQUEST_INSTALL_PACKAGES' "$manifest"
 require_text 'VeytrixInstallResultReceiver' "$manifest"
 require_text 'PackageInstaller' "${files[1]}"
+require_text 'setRequireUserAction' "${files[1]}"
+require_text 'USER_ACTION_REQUIRED' "${files[1]}"
 require_text 'getApkContentsSigners' "${files[1]}"
 require_text 'getSigningCertificateHistory' "${files[1]}"
 require_text 'SHA-256 verification failed' "${files[1]}"
