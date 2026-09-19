@@ -125,6 +125,13 @@ jobs:
             echo "Release tag must use a semantic version tag such as v1.0.1 or v1.0.1-rc1." >&2
             exit 1
           fi
+          tag_version="${RELEASE_TAG#v}"
+          tag_base="${tag_version%%[-+]*}"
+          version_base="${version_name%%[-+]*}"
+          if [[ "$tag_base" != "$version_base" ]]; then
+            echo "Release tag base version must match the APK versionName (${version_name})." >&2
+            exit 1
+          fi
           mkdir -p autopilot/build/outputs/apk/release
           cp "$apk" autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk
           jq -n \
