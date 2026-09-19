@@ -39,6 +39,7 @@ android {
 
     buildTypes {
         debug {
+            // Native OTA validation runs before every Phase 5 Android verification build.
             // Debug remains useful for phone testing. OTA updates must use the signed release artifact.
         }
         release {
