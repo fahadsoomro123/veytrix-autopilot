@@ -6,6 +6,7 @@ import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.util.Base64;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
@@ -96,31 +97,35 @@ public final class VeytrixSecureStore {
     }
 
     private SecretKey getOrCreateKey() throws GeneralSecurityException {
-        KeyStore store = KeyStore.getInstance("AndroidKeyStore");
-        store.load(null);
+        try {
+            KeyStore store = KeyStore.getInstance("AndroidKeyStore");
+            store.load(null);
 
-        if (store.containsAlias(KEY_ALIAS)) {
-            KeyStore.Entry entry = store.getEntry(KEY_ALIAS, null);
-            if (!(entry instanceof KeyStore.SecretKeyEntry)) {
-                throw new GeneralSecurityException("Stored VEYTRIX key type is invalid");
+            if (store.containsAlias(KEY_ALIAS)) {
+                KeyStore.Entry entry = store.getEntry(KEY_ALIAS, null);
+                if (!(entry instanceof KeyStore.SecretKeyEntry)) {
+                    throw new GeneralSecurityException("Stored VEYTRIX key type is invalid");
+                }
+                return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
             }
-            return ((KeyStore.SecretKeyEntry) entry).getSecretKey();
-        }
 
-        KeyGenerator generator = KeyGenerator.getInstance(
-                KeyProperties.KEY_ALGORITHM_AES,
-                "AndroidKeyStore"
-        );
-        generator.init(
-                new KeyGenParameterSpec.Builder(
-                        KEY_ALIAS,
-                        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
-                )
-                        .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                        .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                        .setUserAuthenticationRequired(false)
-                        .build()
-        );
-        return generator.generateKey();
+            KeyGenerator generator = KeyGenerator.getInstance(
+                    KeyProperties.KEY_ALGORITHM_AES,
+                    "AndroidKeyStore"
+            );
+            generator.init(
+                    new KeyGenParameterSpec.Builder(
+                            KEY_ALIAS,
+                            KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT
+                    )
+                            .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+                            .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+                            .setUserAuthenticationRequired(false)
+                            .build()
+            );
+            return generator.generateKey();
+        } catch (IOException e) {
+            throw new GeneralSecurityException("Unable to access Android keystore", e);
+        }
     }
 }
