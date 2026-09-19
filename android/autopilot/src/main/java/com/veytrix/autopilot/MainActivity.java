@@ -460,6 +460,10 @@ public final class MainActivity extends Activity {
         pageHost.addView(col, full());
     }
 
+    private LinearLayout.LayoutParams rowHeight() {
+        return new LinearLayout.LayoutParams(-1, dp(52));
+    }
+
     private View actionListRow(String title,String sub,String icon,View.OnClickListener action){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(4),dp(10),dp(4));row.addView(new IconView(this,icon),new LinearLayout.LayoutParams(dp(30),dp(30)));LinearLayout cp=new LinearLayout(this);cp.setOrientation(LinearLayout.VERTICAL);cp.setPadding(dp(9),0,dp(8),0);cp.addView(text(title,9,INK,true));cp.addView(text(sub,7,MUTED,false));row.addView(cp,new LinearLayout.LayoutParams(0,-2,1));row.addView(text("›",15,MUTED,true),new LinearLayout.LayoutParams(dp(18),-1));row.setOnClickListener(action);return row;}
 
     private void showProfile(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Profile"),wrap());LinearLayout card=cardColumn();card.setGravity(Gravity.CENTER_HORIZONTAL);card.setPadding(dp(16),dp(16),dp(16),dp(16));card.addView(new IconView(this,"profileLarge"),new LinearLayout.LayoutParams(dp(80),dp(80)));card.addView(text("Fahad Hussain",19,INK,true),marginTop(8));card.addView(text("@fahadsoomro123",9,MUTED,false),wrap());col.addView(card,marginBottom(9));LinearLayout stats=cardRow();stats.addView(stat("128","Missions"),weightChild());stats.addView(stat("24","Projects"),weightChild());stats.addView(stat("98%","Success"),weightChild());stats.addView(stat("2.4x","Faster"),weightChild());col.addView(stats,marginBottom(9));LinearLayout account=cardColumn();account.addView(actionListRow("Account Information","Profile and account details","profile",v->toast("Account information opened")),rowHeight());account.addView(actionListRow("Mission History","View previous missions","activity",v->navigate(1)),rowHeight());account.addView(actionListRow("Usage Statistics","Workspace activity","results",v->navigate(2)),rowHeight());col.addView(account);pageHost.addView(col,full());}
