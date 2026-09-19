@@ -59,6 +59,11 @@ public final class FlagshipCoreView extends View {
         setWillNotDraw(false);
     }
 
+    private static int tint(int alpha, int color) {
+        int a = Math.max(0, Math.min(255, alpha));
+        return Color.argb(a, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
     private float dp(float value) {
         return value * density;
     }
@@ -103,10 +108,10 @@ public final class FlagshipCoreView extends View {
                 w * .405f, h * .245f, coreRadius * 1.58f,
                 new int[]{
                         Color.WHITE,
-                        Color.rgb(226, 241, 255),
-                        Color.rgb(126, 157, 255),
-                        Color.rgb(76, 55, 194),
-                        Color.rgb(12, 19, 45)
+                        VeytrixDesignTokens.SILVER,
+                        VeytrixDesignTokens.PINK,
+                        VeytrixDesignTokens.VIOLET,
+                        VeytrixDesignTokens.TEXT_PRIMARY
                 },
                 new float[]{0f, .09f, .30f, .62f, 1f},
                 Shader.TileMode.CLAMP
@@ -128,10 +133,10 @@ public final class FlagshipCoreView extends View {
                 cx - coreRadius * .78f, cy - coreRadius * .85f,
                 cx + coreRadius * .78f, cy + coreRadius * .70f,
                 new int[]{
-                        Color.rgb(248, 250, 255),
-                        Color.rgb(161, 202, 255),
-                        Color.rgb(107, 106, 255),
-                        Color.rgb(215, 117, 255)
+                        VeytrixDesignTokens.PEARL,
+                        VeytrixDesignTokens.SILVER_STRONG,
+                        VeytrixDesignTokens.PURPLE,
+                        VeytrixDesignTokens.MAGENTA
                 },
                 null,
                 Shader.TileMode.CLAMP
@@ -277,8 +282,11 @@ public final class FlagshipCoreView extends View {
             float y = cy + (float) Math.sin(a) * orbital * (i % 2 == 0 ? .44f : .68f);
             float r = dp(i % 4 == 0 ? 2.35f : 1.35f);
             int base = i % 3 == 0 ? 115 : 83;
-            glow.setColor(Color.argb(base + (int) (28 * (0.5f + 0.5f * Math.sin(t * 1.7f + i))), 120, 188, 255));
-            glow.setShadowLayer(r * 3.2f, 0, 0, Color.argb(110, 85, 125, 255));
+            glow.setColor(tint(
+                    base + (int) (28 * (0.5f + 0.5f * Math.sin(t * 1.7f + i))),
+                    VeytrixDesignTokens.MAGENTA
+            ));
+            glow.setShadowLayer(r * 3.2f, 0, 0, tint(110, VeytrixDesignTokens.VIOLET));
             c.drawCircle(x, y, r, glow);
             glow.clearShadowLayer();
 
@@ -300,7 +308,7 @@ public final class FlagshipCoreView extends View {
         c.drawCircle(cx, cy, radius * .77f, fill);
         fill.setShader(null);
 
-        fill.setColor(Color.argb(62, 105, 200, 255));
+        fill.setColor(tint(62, VeytrixDesignTokens.PINK));
         c.drawOval(
                 cx - radius * .76f,
                 cy - radius * .55f,
@@ -351,15 +359,15 @@ public final class FlagshipCoreView extends View {
         baseMid.set(left + dp(7), top + dp(6), right - dp(7), bottom - dp(7));
         baseInner.set(left + dp(17), top + dp(11), right - dp(17), bottom - dp(12));
 
-        fill.setColor(Color.argb(70, 63, 101, 184));
+        fill.setColor(tint(70, VeytrixDesignTokens.VIOLET));
         fill.setShadowLayer(dp(22), 0, dp(5), Color.argb(115, 62, 124, 255));
         c.drawOval(baseOuter, fill);
         fill.clearShadowLayer();
 
-        fill.setColor(Color.rgb(8, 18, 33));
+        fill.setColor(VeytrixDesignTokens.PEARL);
         c.drawOval(baseOuter, fill);
 
-        fill.setColor(Color.rgb(8, 22, 42));
+        fill.setColor(VeytrixDesignTokens.SILVER);
         c.drawOval(baseMid, fill);
 
         fill.setColor(Color.argb(210, 7, 13, 25));
