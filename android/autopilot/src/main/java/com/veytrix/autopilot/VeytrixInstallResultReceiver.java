@@ -20,7 +20,7 @@ public final class VeytrixInstallResultReceiver extends BroadcastReceiver {
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
             Object raw = intent.getExtras() == null
                     ? null
-                    : intent.getExtras().get(PackageInstaller.EXTRA_INTENT);
+                    : intent.getExtras().get(Intent.EXTRA_INTENT);
             if (raw instanceof Intent) {
                 Intent confirmation = (Intent) raw;
                 confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
