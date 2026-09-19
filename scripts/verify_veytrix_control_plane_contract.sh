@@ -12,7 +12,7 @@ fail() {
 
 [[ -s "$workflow" ]] || fail "veytrix-autopilot.yml is missing or empty"
 
-if grep -nE '^[[:space:]]+OPENAI_API_KEY:[[:space:]]*\${{ secrets\.OPENAI_API_KEY' "$workflow"; then
+if grep -nE '^ {6}OPENAI_API_KEY:[[:space:]]*\${{ secrets\.OPENAI_API_KEY' "$workflow"; then
   fail "OPENAI_API_KEY is exposed at broad workflow/job scope"
 fi
 
