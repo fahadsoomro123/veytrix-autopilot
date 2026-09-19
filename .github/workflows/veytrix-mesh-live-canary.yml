@@ -1,0 +1,104 @@
+name: VEYTRIX Mesh Live Fallback Canary
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'free-ai-mesh/**'
+      - 'scripts/verify_veytrix_mesh_contract.sh'
+      - '.github/workflows/veytrix-mesh-live-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  live-fallback:
+    name: Real Puter Mesh fallback canary
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact revision
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify Mesh contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_mesh_contract.sh .
+
+      - name: Detect Puter credential
+        id: provider
+        env:
+          PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${PUTER_AUTH_TOKEN:-}" ]]; then
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'PUTER_AUTH_TOKEN is not configured; live fallback canary is skipped.'
+            exit 0
+          fi
+          echo 'configured=true' >> "$GITHUB_OUTPUT"
+          echo 'Puter credential is configured (value remains masked).'
+
+      - name: Create disposable target repository
+        if: steps.provider.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/veytrix-mesh-live-target
+          mkdir -p /tmp/veytrix-mesh-live-target/docs
+          cd /tmp/veytrix-mesh-live-target
+          git init
+          git config user.name 'Veytrix Live Canary'
+          git config user.email 'veytrix-live-canary@example.invalid'
+          printf 'BROKEN\n' > docs/mesh-live-fixture.txt
+          printf '# Mesh Live Canary\n' > README.md
+          git add README.md docs/mesh-live-fixture.txt
+          git commit -m 'baseline: mesh live canary fixture'
+
+      - name: Execute real Free AI Mesh fallback
+        if: steps.provider.outputs.configured == 'true'
+        env:
+          PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+          AUTOPILOT_MISSION: 'Change docs/mesh-live-fixture.txt from exactly BROKEN to exactly READY. Do not modify README.md or any other file. Verify the changed file before finishing.'
+          VEYTRIX_CORE_DIR: ${{ github.workspace }}
+          VEYTRIX_TARGET_DIR: /tmp/veytrix-mesh-live-target
+          MESH_MAX_ATTEMPTS: '6'
+          MESH_COOLDOWN_MS: '5000'
+        shell: bash
+        run: |
+          set -euo pipefail
+          node free-ai-mesh/mesh_autopilot.mjs | tee /tmp/veytrix-mesh-live-result.json
+
+      - name: Verify real fallback result
+        if: steps.provider.outputs.configured == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(cat /tmp/veytrix-mesh-live-target/docs/mesh-live-fixture.txt)" = 'READY'
+          test "$(git -C /tmp/veytrix-mesh-live-target status --porcelain --untracked-files=all)" = ' M docs/mesh-live-fixture.txt'
+          test "$(git -C /tmp/veytrix-mesh-live-target diff --name-only)" = 'docs/mesh-live-fixture.txt'
+          git -C /tmp/veytrix-mesh-live-target diff --check
+          echo 'VEYTRIX REAL PUTER MESH FALLBACK: PASS'
+
+      - name: Record live-canary status
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo '### VEYTRIX Real Mesh Fallback Canary'
+            if [[ '${{ steps.provider.outputs.configured }}' == 'true' ]]; then
+              echo '- Puter credential: configured'
+              echo '- Real provider execution: attempted'
+              echo '- Disposable target mutation: isolated'
+            else
+              echo '- Puter credential: not configured'
+              echo '- Real provider execution: skipped'
+              echo '- Result: external configuration required'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
