@@ -6,6 +6,8 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.Signature;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -20,6 +22,7 @@ import java.util.concurrent.Executors;
 public final class VeytrixApkInstaller {
     private final Context context;
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final Handler main = new Handler(Looper.getMainLooper());
 
     public VeytrixApkInstaller(Context context) {
         this.context = context.getApplicationContext();
@@ -63,9 +66,11 @@ public final class VeytrixApkInstaller {
                 } finally {
                     session.close();
                 }
-                callback.onSuccess("Android PackageInstaller session " + sessionId + " submitted.");
+                main.post(() -> callback.onSuccess(
+                        "Android PackageInstaller session " + sessionId + " submitted."));
             } catch (Exception error) {
-                callback.onError(safeMessage(error));
+                String message = safeMessage(error);
+                main.post(() -> callback.onError(message));
             }
         });
     }
