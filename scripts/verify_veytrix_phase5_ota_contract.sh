@@ -46,9 +46,17 @@ require_text 'showUpdates' "$main"
 require_text 'Updates' "$main"
 require_text 'permissions:' "$publish"
 require_text 'contents: write' "$publish"
-require_text 'gh release' "$publish"
+require_text 'gh release create' "$publish"
 require_text 'update.json' "$publish"
 require_text 'VEYTRIX_KEYSTORE_BASE64' "$publish"
+require_text 'build_commit="$(git rev-parse HEAD)"' "$publish"
+require_text 'jq -n' "$publish"
+require_text '--target "$BUILD_COMMIT"' "$publish"
+require_text 'already exists; refusing to replace published OTA assets.' "$publish"
+if grep -Fq 'gh release upload' "$publish" || grep -Fq -- '--clobber' "$publish"; then
+  echo 'OTA publisher must not replace assets under an existing release tag.' >&2
+  exit 1
+fi
 
 if grep -REn 'ScrollView|HorizontalScrollView' "${files[@]}"; then
   echo 'Phase 5 update surface must not depend on page scrolling.' >&2
