@@ -181,6 +181,25 @@ jobs:
             args+=(--prerelease)
           fi
           gh release create "${args[@]}"
+      
+      - name: Verify published OTA release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          BUILD_COMMIT: ${{ steps.metadata.outputs.build_commit }}
+          EXPECTED_SHA256: ${{ steps.metadata.outputs.sha256 }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_json="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG}")"
+          published_target="$(printf '%s' "$release_json" | jq -r '.target_commitish')"
+          test "$published_target" = "$BUILD_COMMIT"
+          asset_digest="$(printf '%s' "$release_json" | jq -r '.assets[] | select(.name == "veytrix-autopilot-release.apk") | .digest')"
+          test "$asset_digest" = "sha256:$EXPECTED_SHA256"
+          metadata_present="$(printf '%s' "$release_json" | jq -r '[.assets[] | select(.name == "update.json")] | length')"
+          test "$metadata_present" -eq 1
+          echo "Published release verified: tag=$RELEASE_TAG target=$BUILD_COMMIT asset_digest=$asset_digest"
+      
       - name: Record OTA release result
         shell: bash
         run: |
