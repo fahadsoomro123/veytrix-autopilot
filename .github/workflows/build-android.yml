@@ -11,6 +11,7 @@ on:
       - 'scripts/verify_veytrix_phase2_home_contract.sh'
       - 'scripts/verify_veytrix_phase2_primary_contract.sh'
       - 'scripts/verify_veytrix_mesh_contract.sh'
+      - 'scripts/verify_veytrix_phase5_ota_contract.sh'
       - 'free-ai-mesh/**'
       - 'scripts/verify_veytrix_phase3_secondary_contract.sh'
       - 'scripts/verify_veytrix_mesh_contract.sh'
@@ -86,6 +87,12 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/verify_veytrix_phase3_secondary_contract.sh .
+
+      - name: Verify VEYTRIX Phase 5 OTA contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_phase5_ota_contract.sh .
 
       - name: Verify VEYTRIX 3M GitHub Mesh contract
         shell: bash
