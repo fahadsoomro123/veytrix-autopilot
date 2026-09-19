@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT=${1:-.}
 cd "$ROOT"
 
-changed="$(git diff --name-only --diff-filter=ACMR)"
-changed_cached="$(git diff --cached --name-only --diff-filter=ACMR)"
+changed="$(git diff --name-only --diff-filter=ACMRD)"
+changed_cached="$(git diff --cached --name-only --diff-filter=ACMRD)"
 untracked="$(git ls-files --others --exclude-standard)"
 all_changed="$(printf '%s\n%s\n%s\n' "$changed" "$changed_cached" "$untracked" | sed '/^$/d' | sort -u)"
 
