@@ -2,9 +2,9 @@
 set -euo pipefail
 
 ROOT=${1:-.}
-mesh='$ROOT/free-ai-mesh'
-agent='$mesh/mesh_autopilot.mjs'
-core='$mesh/FreeAiMesh.mjs'
+mesh="$ROOT/free-ai-mesh"
+agent="$mesh/mesh_autopilot.mjs"
+core="$mesh/FreeAiMesh.mjs"
 
 test -f "$core"
 test -f "$ROOT/free-ai-mesh/free_ai_mesh_canary.mjs"
