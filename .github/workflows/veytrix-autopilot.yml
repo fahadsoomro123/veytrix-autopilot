@@ -177,7 +177,7 @@ jobs:
           set -euo pipefail
           reason='${{ steps.engine.outputs.reason }}'
           if [[ "${{ steps.deterministic.outcome }}" == 'success' ]] &&
-             [[ "\$reason" == deterministic-capability-sufficient* ]]; then
+             [[ "$reason" == deterministic-capability-sufficient* ]]; then
             echo 'Deterministic capability was sufficient for this verification-only mission.'
             exit 0
           fi
