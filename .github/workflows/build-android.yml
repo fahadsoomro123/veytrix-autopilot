@@ -9,6 +9,15 @@ on:
       - 'scripts/verify_veytrix_control_plane_contract.sh'
       - '.github/workflows/build-android.yml'
       - '.github/workflows/veytrix-autopilot.yml'
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'scripts/**'
+      - 'docs/ANDROID-RELEASE.md'
+      - 'scripts/verify_veytrix_control_plane_contract.sh'
+      - '.github/workflows/build-android.yml'
+      - '.github/workflows/veytrix-autopilot.yml'
+
   workflow_dispatch:
     inputs:
       signed_release:
