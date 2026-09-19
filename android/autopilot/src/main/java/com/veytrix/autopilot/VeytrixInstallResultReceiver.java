@@ -20,8 +20,11 @@ public final class VeytrixInstallResultReceiver extends BroadcastReceiver {
                 PackageInstaller.STATUS_FAILURE);
 
         if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
-            Intent confirmation = parcelableIntent(intent);
-            if (confirmation != null) {
+            Object raw = intent.getExtras() == null
+                    ? null
+                    : intent.getExtras().get(PackageInstaller.EXTRA_INTENT);
+            if (raw instanceof Intent) {
+                Intent confirmation = (Intent) raw;
                 confirmation.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 context.startActivity(confirmation);
             }
@@ -36,11 +39,4 @@ public final class VeytrixInstallResultReceiver extends BroadcastReceiver {
         context.sendBroadcast(result);
     }
 
-    private Intent parcelableIntent(Intent source) {
-        if (Build.VERSION.SDK_INT >= 33) {
-            return source.getParcelableExtra(
-                    PackageInstaller.EXTRA_INTENT, Intent.class);
-        }
-        return source.getParcelableExtra(PackageInstaller.EXTRA_INTENT);
-    }
 }
