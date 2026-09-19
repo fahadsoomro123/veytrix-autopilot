@@ -41,7 +41,6 @@ jobs:
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
       FAILED_WORKFLOW: ${{ github.event.workflow_run.name }}
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     steps:
       - name: Checkout controller core
@@ -59,6 +58,19 @@ jobs:
           path: target
           fetch-depth: 100
           persist-credentials: false
+
+      - name: Detect OpenAI availability
+        id: ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Collect sanitized failure evidence
         shell: bash
@@ -128,20 +140,20 @@ jobs:
           fi
 
       - name: Prepare Android verification toolchain
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != '' && hashFiles('target/android/settings.gradle.kts') != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true' && hashFiles('target/android/settings.gradle.kts') != ''
         uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Install Gradle verification toolchain
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != '' && hashFiles('target/android/settings.gradle.kts') != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true' && hashFiles('target/android/settings.gradle.kts') != ''
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '8.13'
 
       - name: AI repair pass 1
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true'
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -198,7 +210,7 @@ jobs:
       - name: Verify repair pass 1
         id: verify_pass1
         continue-on-error: true
-        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && env.OPENAI_API_KEY != ''
+        if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification != 'transient' && steps.guard.outputs.repair_allowed == 'true' && steps.ai.outputs.available == 'true'
         working-directory: target
         shell: bash
         run: |
@@ -237,7 +249,7 @@ jobs:
           exit "$status"
 
       - name: AI repair pass 2
-        if: steps.verify_pass1.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        if: steps.verify_pass1.outcome == 'failure' && steps.ai.outputs.available == 'true'
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -270,7 +282,7 @@ jobs:
       - name: Verify repair pass 2
         id: verify_pass2
         continue-on-error: true
-        if: steps.verify_pass1.outcome == 'failure' && env.OPENAI_API_KEY != ''
+        if: steps.verify_pass1.outcome == 'failure' && steps.ai.outputs.available == 'true'
         working-directory: target
         shell: bash
         run: |
@@ -357,7 +369,7 @@ jobs:
           git push origin "HEAD:${HEAD_BRANCH}"
 
       - name: Report recovery blocked or exhausted
-        if: always() && (steps.blocker.outputs.blocked == 'true' || (steps.guard.outcome == 'success' && steps.guard.outputs.repair_allowed == 'false') || (steps.verified.outcome == 'success' && steps.verified.outputs.publish == 'false') || (steps.fingerprint.outputs.classification != 'transient' && env.OPENAI_API_KEY == ''))
+        if: always() && (steps.blocker.outputs.blocked == 'true' || (steps.guard.outcome == 'success' && steps.guard.outputs.repair_allowed == 'false') || (steps.verified.outcome == 'success' && steps.verified.outputs.publish == 'false') || (steps.fingerprint.outputs.classification != 'transient' && steps.ai.outputs.available != 'true'))
         shell: bash
         run: |
           set -euo pipefail
