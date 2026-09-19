@@ -114,8 +114,26 @@ public final class VeytrixUpdateView extends LinearLayout {
         note.setEllipsize(android.text.TextUtils.TruncateAt.END);
         addView(note, new LayoutParams(-1, dp(56)));
 
-        View spacer = new View(context);
-        addView(spacer, new LayoutParams(-1, 0, 1f));
+        LinearLayout proofRail = new LinearLayout(context);
+        proofRail.setGravity(Gravity.CENTER_VERTICAL);
+        proofRail.setPadding(dp(12), 0, dp(12), 0);
+        proofRail.setBackground(round(VeytrixDesignTokens.WHITE, 15, VeytrixDesignTokens.SILVER));
+        TextView proof = text(
+                "RELEASE INTEGRITY",
+                9,
+                VeytrixDesignTokens.TEXT_SECONDARY,
+                true
+        );
+        proofRail.addView(proof, new LayoutParams(dp(112), dp(44)));
+        TextView proofDetail = text(
+                "SHA-256  •  SIGNER  •  USER APPROVAL",
+                9,
+                VeytrixDesignTokens.STATE_VERIFIED,
+                true
+        );
+        proofDetail.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        proofRail.addView(proofDetail, new LayoutParams(0, dp(44), 1f));
+        addView(proofRail, new LayoutParams(-1, dp(46)));
 
         refreshInstalledVersion();
         refreshInstallPermission();
