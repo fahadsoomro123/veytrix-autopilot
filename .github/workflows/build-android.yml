@@ -6,7 +6,9 @@ on:
       - 'android/**'
       - 'scripts/**'
       - 'docs/ANDROID-RELEASE.md'
+      - 'scripts/verify_veytrix_control_plane_contract.sh'
       - '.github/workflows/build-android.yml'
+      - '.github/workflows/veytrix-autopilot.yml'
   workflow_dispatch:
     inputs:
       signed_release:
@@ -29,6 +31,12 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Verify VEYTRIX control-plane security contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_control_plane_contract.sh .
 
       - name: Verify VEYTRIX native Android contract
         shell: bash
