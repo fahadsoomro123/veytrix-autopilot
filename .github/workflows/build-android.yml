@@ -25,9 +25,15 @@ on:
       - 'docs/ANDROID-RELEASE.md'
       - 'scripts/verify_veytrix_control_plane_contract.sh'
       - 'scripts/verify_veytrix_android_security_contract.sh'
+      - 'scripts/verify_veytrix_phase2_home_contract.sh'
+      - 'scripts/verify_veytrix_phase2_primary_contract.sh'
       - 'scripts/verify_veytrix_phase3_secondary_contract.sh'
+      - 'scripts/verify_veytrix_phase5_ota_contract.sh'
+      - 'scripts/verify_veytrix_mesh_contract.sh'
+      - 'free-ai-mesh/**'
       - '.github/workflows/build-android.yml'
       - '.github/workflows/veytrix-autopilot.yml'
+      - '.github/workflows/veytrix-ota-publish.yml'
 
   workflow_dispatch:
     inputs:
