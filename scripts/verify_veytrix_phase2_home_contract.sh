@@ -31,7 +31,7 @@ fi
 grep -Fq 'client.startMission(' "$home" ||
   fail "Home execution button is not wired to the real autopilot client"
 
-grep -Fq 'client.verify' "$main" ||
+grep -Fq 'verifyConnection(' "$main" ||
   fail "secure GitHub verification is not reachable from the Home connection flow"
 
 grep -Fq 'TOUCH_TARGET_DP = 48' "$tokens" ||
