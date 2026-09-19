@@ -27,12 +27,12 @@ public final class VeytrixHomeView extends LinearLayout {
 
     private final VeytrixAutopilotClient client;
     private final Host host;
-    private final EditText missionInput;
-    private final TextView connectionText;
-    private final TextView targetText;
-    private final TextView stateText;
-    private final TextView runText;
-    private final Button executeButton;
+    private EditText missionInput;
+    private TextView connectionText;
+    private TextView targetText;
+    private TextView stateText;
+    private TextView runText;
+    private Button executeButton;
 
     public VeytrixHomeView(Context context, VeytrixAutopilotClient client, Host host) {
         super(context);
