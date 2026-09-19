@@ -5,6 +5,7 @@ requested="${1:-auto}"
 deterministic_outcome="${2:-failure}"
 mission="${3:-}"
 ai_available="${4:-false}"
+mesh_available="${5:-false}"
 
 selected=""
 reason=""
@@ -22,6 +23,14 @@ case "$requested" in
       selected="github-free"
       reason="explicit-github-free"
     fi
+    ;;
+  mesh)
+    if [[ "$mesh_available" != "true" ]]; then
+      echo "error=mesh-requested-but-puter-token-unavailable"
+      exit 4
+    fi
+    selected="mesh"
+    reason="explicit-mesh"
     ;;
   ai)
     if [[ "$ai_available" != "true" ]]; then
@@ -45,9 +54,12 @@ case "$requested" in
       else
         reason="deterministic-verification-insufficient"
       fi
+    elif [[ "$mesh_available" == "true" ]]; then
+      selected="mesh"
+      reason="ai-unavailable-mesh-fallback"
     else
       selected="github-free"
-      reason="ai-unavailable-deterministic-only"
+      reason="ai-unavailable-no-mesh-configured"
     fi
     ;;
   *)
