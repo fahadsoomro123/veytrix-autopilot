@@ -22,10 +22,7 @@ import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
-import android.widget.ScrollView;
-import android.widget.Space;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -38,16 +35,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
  */
 public final class MainActivity extends Activity {
 
-    private static final int WHITE = Color.rgb(255, 255, 255);
-    private static final int INK = Color.rgb(16, 34, 59);
-    private static final int MUTED = Color.rgb(104, 125, 151);
-    private static final int BORDER = Color.rgb(211, 224, 240);
-    private static final int NAVY = Color.rgb(8, 23, 42);
-    private static final int NAVY_2 = Color.rgb(12, 32, 55);
-    private static final int BLUE = Color.rgb(55, 132, 255);
-    private static final int PURPLE = Color.rgb(126, 84, 239);
-    private static final int GREEN = Color.rgb(34, 190, 145);
-    private static final int RED = Color.rgb(226, 76, 97);
+    private static final int VeytrixDesignTokens.VeytrixDesignTokens.PURPLE = Color.rgb(8, 23, 42);
 
     private FrameLayout root;
     private FrameLayout pageHost;
@@ -55,7 +43,8 @@ public final class MainActivity extends Activity {
     private FrameLayout drawerShade;
     private LinearLayout drawer;
     private VeytrixAutopilotClient autopilotClient;
-    private boolean voiceListening;
+    private VeytrixVoiceView activeVoiceView;
+    private String pendingVoiceMission = "";
     private int systemBarTopInset;
     private int systemBarBottomInset;
 
@@ -71,6 +60,10 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onDestroy() {
+        if (activeVoiceView != null) {
+            activeVoiceView.release();
+            activeVoiceView = null;
+        }
         if (autopilotClient != null) {
             autopilotClient.shutdown();
         }
@@ -80,8 +73,8 @@ public final class MainActivity extends Activity {
     private void configureWindow() {
         Window window = getWindow();
         WindowCompat.setDecorFitsSystemWindows(window, false);
-        window.setStatusBarColor(WHITE);
-        window.setNavigationBarColor(WHITE);
+        window.setStatusBarColor(VeytrixDesignTokens.WHITE);
+        window.setNavigationBarColor(VeytrixDesignTokens.WHITE);
         WindowInsetsControllerCompat controller =
                 WindowCompat.getInsetsController(window, window.getDecorView());
         controller.setAppearanceLightStatusBars(true);
@@ -135,7 +128,7 @@ public final class MainActivity extends Activity {
         nav.setGravity(Gravity.CENTER);
         nav.setPadding(dp(6), dp(6), dp(6), dp(6));
         nav.setBackground(roundDrawable(
-                VeytrixDesignTokens.WHITE,
+                VeytrixDesignTokens.VeytrixDesignTokens.WHITE,
                 20,
                 VeytrixDesignTokens.SILVER
         ));
@@ -169,7 +162,7 @@ public final class MainActivity extends Activity {
 
     private void buildDrawer() {
         drawerShade = new FrameLayout(this);
-        drawerShade.setBackgroundColor(Color.argb(105, 5, 16, 28));
+        drawerShade.setBackgroundColor(withAlpha(VeytrixDesignTokens.VeytrixDesignTokens.PURPLE, 58));
         drawerShade.setVisibility(View.GONE);
         drawerShade.setOnClickListener(v -> closeDrawer());
         root.addView(drawerShade, full());
@@ -177,7 +170,7 @@ public final class MainActivity extends Activity {
         drawer = new LinearLayout(this);
         drawer.setOrientation(LinearLayout.VERTICAL);
         drawer.setPadding(dp(16), dp(18), dp(16), dp(16));
-        drawer.setBackgroundColor(WHITE);
+        drawer.setBackgroundColor(VeytrixDesignTokens.WHITE);
         drawer.setElevation(dp(12));
         FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(dp(310), -1, Gravity.LEFT);
         lp.topMargin = dp(12); lp.bottomMargin = dp(12);
@@ -195,34 +188,34 @@ public final class MainActivity extends Activity {
         LinearLayout brandCol = new LinearLayout(this);
         brandCol.setOrientation(LinearLayout.VERTICAL);
         brandCol.setPadding(dp(10), 0, 0, 0);
-        brandCol.addView(text("VEYTRIX", 18, INK, true));
-        brandCol.addView(text("AUTONOMOUS AI DEVELOPMENT", 8, MUTED, false));
+        brandCol.addView(text("VEYTRIX", 18, VeytrixDesignTokens.TEXT_PRIMARY, true));
+        brandCol.addView(text("AUTONOMOUS AI DEVELOPMENT", 8, VeytrixDesignTokens.TEXT_SECONDARY, false));
         header.addView(brandCol, new LinearLayout.LayoutParams(0, -2, 1));
         IconView close = new IconView(this, "close");
         close.setOnClickListener(v -> closeDrawer());
         header.addView(close, new LinearLayout.LayoutParams(dp(32), dp(32)));
         drawer.addView(header, new LinearLayout.LayoutParams(-1, dp(52)));
-        drawer.addView(text("WORKSPACE", 9, MUTED, true), new LinearLayout.LayoutParams(-1, dp(28)));
+        drawer.addView(text("WORKSPACE", 9, VeytrixDesignTokens.TEXT_SECONDARY, true), new LinearLayout.LayoutParams(-1, dp(28)));
         drawerItem("Home", "home", 0); drawerItem("Activity", "activity", 1);
         drawerItem("Results", "results", 2); drawerItem("Control", "control", 3);
         drawerItem("Profile", "profile", 4); drawerItem("Voice", "voice", 5); drawerItem("Settings", "settings", 6);
         Space spacer = new Space(this); drawer.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1));
-        drawer.addView(text("SUPPORT", 9, MUTED, true), new LinearLayout.LayoutParams(-1, dp(26)));
+        drawer.addView(text("SUPPORT", 9, VeytrixDesignTokens.TEXT_SECONDARY, true), new LinearLayout.LayoutParams(-1, dp(26)));
         drawerItem("Help & Support", "support", 7); drawerItem("Completed", "check", 8);
         LinearLayout account = new LinearLayout(this); account.setGravity(Gravity.CENTER_VERTICAL);
-        account.setPadding(dp(10), dp(8), dp(10), dp(8)); account.setBackground(roundDrawable(Color.rgb(244,248,253), 14, BORDER));
+        account.setPadding(dp(10), dp(8), dp(10), dp(8)); account.setBackground(roundDrawable(VeytrixDesignTokens.PEARL, 14, VeytrixDesignTokens.SILVER));
         IconView avatar = new IconView(this, "profile"); account.addView(avatar, new LinearLayout.LayoutParams(dp(30), dp(30)));
         LinearLayout acc = new LinearLayout(this); acc.setOrientation(LinearLayout.VERTICAL); acc.setPadding(dp(10),0,0,0);
-        acc.addView(text("Fahad Hussain",10,INK,true)); acc.addView(text("Pro User",8,PURPLE,true)); account.addView(acc);
+        acc.addView(text("GitHub connection",10,VeytrixDesignTokens.TEXT_PRIMARY,true)); acc.addView(text("Secure credential state",8,VeytrixDesignTokens.VIOLET,true)); account.addView(acc);
         drawer.addView(account, new LinearLayout.LayoutParams(-1, dp(56)));
     }
 
     private void drawerItem(String label, String icon, int destination) {
         LinearLayout item = new LinearLayout(this); item.setGravity(Gravity.CENTER_VERTICAL); item.setPadding(dp(8),0,dp(8),0);
         item.addView(new IconView(this, icon), new LinearLayout.LayoutParams(dp(26),dp(26)));
-        TextView labelView=text(label,11,INK,true); labelView.setPadding(dp(8),0,0,0);
+        TextView labelView=text(label,11,VeytrixDesignTokens.TEXT_PRIMARY,true); labelView.setPadding(dp(8),0,0,0);
         item.addView(labelView,new LinearLayout.LayoutParams(0,-1,1));
-        item.setOnClickListener(v->{closeDrawer(); switch(destination){case 0:navigate(0);break;case 1:navigate(1);break;case 2:navigate(2);break;case 3:navigate(3);break;case 4:showProfile();break;case 5:showVoice();break;case 6:showSettings();break;case 8:showCompleted();break;default:toast("Support is ready for connection");}});
+        item.setOnClickListener(v->{closeDrawer(); switch(destination){case 0:navigate(0);break;case 1:navigate(1);break;case 2:navigate(2);break;case 3:navigate(3);break;case 4:showProfile();break;case 5:showVoice();break;case 6:showSettings();break;case 7:showSupport();break;case 8:showCompleted();break;default:break;}});
         drawer.addView(item,new LinearLayout.LayoutParams(-1,dp(44)));
     }
 
@@ -232,6 +225,10 @@ public final class MainActivity extends Activity {
     private void navigate(int page){currentPage=page;if(page==0)showHome();else if(page==1)showActivity();else if(page==2)showResults();else if(page==3)showControl();else showMore();}
     private void clearPage(){
         closeDrawer();
+        if (activeVoiceView != null) {
+            activeVoiceView.release();
+            activeVoiceView = null;
+        }
         pageHost.removeAllViews();
         pageHost.setPadding(
                 dp(14),
@@ -249,22 +246,24 @@ public final class MainActivity extends Activity {
                 dp(14),
                 systemBarBottomInset + dp(82)
         );
-        pageHost.addView(
-                new VeytrixHomeView(
-                        this,
-                        autopilotClient,
-                        new VeytrixHomeView.Host() {
-                            @Override public void openDrawer() {
-                                MainActivity.this.openDrawer();
-                            }
+        VeytrixHomeView home = new VeytrixHomeView(
+                this,
+                autopilotClient,
+                new VeytrixHomeView.Host() {
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
 
-                            @Override public void openConnection() {
-                                MainActivity.this.showConnectionDialog();
-                            }
-                        }
-                ),
-                full()
+                    @Override public void openConnection() {
+                        MainActivity.this.showConnectionDialog();
+                    }
+                }
         );
+        pageHost.addView(home, full());
+        if (!pendingVoiceMission.isEmpty()) {
+            home.setMissionText(pendingVoiceMission);
+            pendingVoiceMission = "";
+        }
     }
 
     private void showConnectionDialog() {
@@ -406,89 +405,164 @@ public final class MainActivity extends Activity {
 
     private void showMore() {
         clearPage();
-        LinearLayout col = pageColumn();
-        col.addView(topBar("More"), wrap());
-        col.addView(
-                text(
-                        "Secondary tools and account controls.",
-                        10,
-                        VeytrixDesignTokens.TEXT_SECONDARY,
-                        false
-                ),
-                marginBottom(8)
-        );
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(14), dp(8), dp(14), dp(10));
+        col.setBackgroundColor(VeytrixDesignTokens.PEARL);
 
-        LinearLayout menu = cardColumn();
-        menu.addView(
-                actionListRow(
-                        "Profile",
-                        "Connection and target repository",
-                        "profile",
-                        v -> showProfile()
-                ),
-                new LinearLayout.LayoutParams(-1, dp(52))
-        );
-        menu.addView(
-                actionListRow(
-                        "Control",
-                        "Engine and verification settings",
-                        "control",
-                        v -> showControl()
-                ),
-                new LinearLayout.LayoutParams(-1, dp(52))
-        );
-        menu.addView(
-                actionListRow(
-                        "Voice Command",
-                        "Native voice interaction surface",
-                        "voice",
-                        v -> showVoice()
-                ),
-                new LinearLayout.LayoutParams(-1, dp(52))
-        );
-        menu.addView(
-                actionListRow(
-                        "Completed",
-                        "Real successful workflow runs",
-                        "check",
-                        v -> showCompleted()
-                ),
-                new LinearLayout.LayoutParams(-1, dp(52))
-        );
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        Button menu = button("☰", VeytrixDesignTokens.VeytrixDesignTokens.WHITE, VeytrixDesignTokens.TEXT_PRIMARY);
+        menu.setOnClickListener(v -> openDrawer());
+        header.addView(menu, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        TextView title = text("MORE", 22, VeytrixDesignTokens.TEXT_PRIMARY, true);
+        title.setPadding(dp(8), 0, 0, 0);
+        header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        col.addView(header, new LinearLayout.LayoutParams(-1, dp(48)));
 
-        col.addView(menu);
+        col.addView(text(
+                "Secondary tools, account and support surfaces.",
+                10,
+                VeytrixDesignTokens.TEXT_SECONDARY,
+                false
+        ), marginBottom(8));
+
+        col.addView(actionListRow("Profile", "Connection and target repository", v -> showProfile()),
+                new LinearLayout.LayoutParams(-1, dp(56)));
+        col.addView(actionListRow("Voice Command", "Native speech recognition to mission composer", v -> showVoice()),
+                new LinearLayout.LayoutParams(-1, dp(56)));
+        col.addView(actionListRow("Completed", "Real successful workflow runs", v -> showCompleted()),
+                new LinearLayout.LayoutParams(-1, dp(56)));
+        col.addView(actionListRow("Help & Support", "Connection and control guidance", v -> showSupport()),
+                new LinearLayout.LayoutParams(-1, dp(56)));
+        col.addView(actionListRow("Control", "Engine and verification settings", v -> showControl()),
+                new LinearLayout.LayoutParams(-1, dp(56)));
+
         pageHost.addView(col, full());
     }
 
-    private LinearLayout.LayoutParams rowHeight() {
-        return new LinearLayout.LayoutParams(-1, dp(52));
+    private LinearLayout actionListRow(
+            String title,
+            String subtitle,
+            View.OnClickListener action
+    ) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(4), dp(12), dp(4));
+        row.setBackground(roundDrawable(
+                VeytrixDesignTokens.VeytrixDesignTokens.WHITE, 15, VeytrixDesignTokens.SILVER
+        ));
+        TextView marker = text("•", 18, VeytrixDesignTokens.VIOLET, true);
+        marker.setGravity(Gravity.CENTER);
+        row.addView(marker, new LinearLayout.LayoutParams(dp(30), dp(48)));
+        LinearLayout copy = new LinearLayout(this);
+        copy.setOrientation(LinearLayout.VERTICAL);
+        copy.setPadding(dp(8), 0, dp(6), 0);
+        copy.addView(text(title, 11, VeytrixDesignTokens.TEXT_PRIMARY, true));
+        copy.addView(text(subtitle, 9, VeytrixDesignTokens.TEXT_SECONDARY, false));
+        row.addView(copy, new LinearLayout.LayoutParams(0, dp(48), 1f));
+        TextView arrow = text("›", 17, VeytrixDesignTokens.VIOLET, true);
+        arrow.setGravity(Gravity.CENTER);
+        row.addView(arrow, new LinearLayout.LayoutParams(dp(28), dp(48)));
+        row.setOnClickListener(action);
+        return row;
     }
 
-    private View actionListRow(String title,String sub,String icon,View.OnClickListener action){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(4),dp(10),dp(4));row.addView(new IconView(this,icon),new LinearLayout.LayoutParams(dp(30),dp(30)));LinearLayout cp=new LinearLayout(this);cp.setOrientation(LinearLayout.VERTICAL);cp.setPadding(dp(9),0,dp(8),0);cp.addView(text(title,9,INK,true));cp.addView(text(sub,7,MUTED,false));row.addView(cp,new LinearLayout.LayoutParams(0,-2,1));row.addView(text("›",15,MUTED,true),new LinearLayout.LayoutParams(dp(18),-1));row.setOnClickListener(action);return row;}
+    private void showProfile() {
+        clearPage();
+        pageHost.addView(new VeytrixProfileView(
+                this,
+                autopilotClient,
+                new VeytrixProfileView.Host() {
+                    @Override public void openConnection() {
+                        showConnectionDialog();
+                    }
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
+                    @Override public void closeConnection() {
+                        showHome();
+                    }
+                }
+        ), full());
+    }
 
-    private void showProfile(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Profile"),wrap());LinearLayout card=cardColumn();card.setGravity(Gravity.CENTER_HORIZONTAL);card.setPadding(dp(16),dp(16),dp(16),dp(16));card.addView(new IconView(this,"profileLarge"),new LinearLayout.LayoutParams(dp(80),dp(80)));card.addView(text("Fahad Hussain",19,INK,true),marginTop(8));card.addView(text("@fahadsoomro123",9,MUTED,false),wrap());col.addView(card,marginBottom(9));LinearLayout stats=cardRow();stats.addView(stat("128","Missions"),weightChild());stats.addView(stat("24","Projects"),weightChild());stats.addView(stat("98%","Success"),weightChild());stats.addView(stat("2.4x","Faster"),weightChild());col.addView(stats,marginBottom(9));LinearLayout account=cardColumn();account.addView(actionListRow("Account Information","Profile and account details","profile",v->toast("Account information opened")),rowHeight());account.addView(actionListRow("Mission History","View previous missions","activity",v->navigate(1)),rowHeight());account.addView(actionListRow("Usage Statistics","Workspace activity","results",v->navigate(2)),rowHeight());col.addView(account);pageHost.addView(col,full());}
+    private void showVoice() {
+        clearPage();
+        activeVoiceView = new VeytrixVoiceView(
+                this,
+                new VeytrixVoiceView.Host() {
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
+                    @Override public void sendCommandToMission(String command) {
+                        pendingVoiceMission = command;
+                        showHome();
+                    }
+                }
+        );
+        pageHost.addView(activeVoiceView, full());
+    }
+
+    private void showCompleted() {
+        clearPage();
+        pageHost.addView(new VeytrixCompletedView(
+                this,
+                autopilotClient,
+                new VeytrixCompletedView.Host() {
+                    @Override public void openConnection() {
+                        showConnectionDialog();
+                    }
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
+                    @Override public void openRunDetails(VeytrixAutopilotClient.RunInfo run) {
+                        showRunDetails(run);
+                    }
+                }
+        ), full());
+    }
+
+    private void showSupport() {
+        clearPage();
+        pageHost.addView(new VeytrixSupportView(
+                this,
+                autopilotClient,
+                new VeytrixSupportView.Host() {
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
+                    @Override public void openConnection() {
+                        showConnectionDialog();
+                    }
+                    @Override public void openControl() {
+                        showControl();
+                    }
+                }
+        ), full());
+    }
+
+    private void showRunDetails(VeytrixAutopilotClient.RunInfo run) {
+        clearPage();
+        pageHost.addView(new VeytrixRunDetailsView(
+                this,
+                autopilotClient,
+                run,
+                new VeytrixRunDetailsView.Host() {
+                    @Override public void openDrawer() {
+                        MainActivity.this.openDrawer();
+                    }
+                    @Override public void openActivity() {
+                        showActivity();
+                    }
+                }
+        ), full());
+    }
 
     private void showSettings() {
         showControl();
     }
 
-    private void showVoice(){clearPage();LinearLayout col=pageColumn();col.setGravity(Gravity.CENTER_HORIZONTAL);col.addView(topBar("Voice Command"),wrap());col.addView(text("Create and control a mission with your voice.",10,MUTED,false),marginBottom(10));VoiceView voice=new VoiceView(this);voice.setOnClickListener(v->{voiceListening=!voiceListening;voice.setListening(voiceListening);toast(voiceListening?"Listening…":"Voice input stopped");});col.addView(voice,new LinearLayout.LayoutParams(dp(220),dp(220)));col.addView(text(voiceListening?"Listening…":"Tap to speak",21,INK,true),marginTop(8));col.addView(text("Give a voice command to create your mission.",9,MUTED,false),wrap());pageHost.addView(col,full());}
-
-    private void showDetails(String title,String desc,String status){clearPage();LinearLayout col=pageColumn();col.addView(topBar(title),wrap());TextView s=text(status,9,status.equals("Failed")?RED:GREEN,true);s.setPadding(dp(8),dp(5),dp(8),dp(5));s.setBackground(roundDrawable(Color.argb(24,Color.red(status.equals("Failed")?RED:GREEN),Color.green(status.equals("Failed")?RED:GREEN),Color.blue(status.equals("Failed")?RED:GREEN)),9,Color.TRANSPARENT));col.addView(s,marginBottom(8));LinearLayout tl=cardColumn();tl.addView(stageRow("Planning","Analyzing requirements",true));tl.addView(stageRow("Executing","Generating code and files",true));tl.addView(stageRow("Verifying","Running tests and validation",false));tl.addView(stageRow("Finalizing","Preparing mission results",false));col.addView(tl,marginBottom(10));LinearLayout output=cardColumn();output.addView(text("Live output",11,INK,true));output.addView(text("$ Initializing project structure…\n$ Creating API endpoints…\n$ Setting database models…\n$ Generating tests…\n$ Running validation…",9,MUTED,false),marginTop(8));col.addView(output,marginBottom(10));LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.HORIZONTAL);Button pause=button("Pause",Color.rgb(239,246,255),INK);Button cancel=button("Cancel",Color.rgb(255,239,242),RED);pause.setOnClickListener(v->toast("Mission paused"));cancel.setOnClickListener(v->toast("Mission cancelled"));actions.addView(pause,new LinearLayout.LayoutParams(0,dp(42),1));space(actions,8,0);actions.addView(cancel,new LinearLayout.LayoutParams(0,dp(42),1));col.addView(actions);pageHost.addView(col,full());}
-
-    private View stageRow(String title,String sub,boolean done){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(0,dp(6),0,dp(6));row.addView(new IconView(this,done?"done":"dot"),new LinearLayout.LayoutParams(dp(28),dp(28)));LinearLayout cp=new LinearLayout(this);cp.setOrientation(LinearLayout.VERTICAL);cp.setPadding(dp(9),0,0,0);cp.addView(text(title,10,INK,true));cp.addView(text(sub,8,MUTED,false));row.addView(cp,new LinearLayout.LayoutParams(0,-2,1));return row;}
-
-    private void showCompleted(){clearPage();LinearLayout col=pageColumn();col.setGravity(Gravity.CENTER_HORIZONTAL);col.addView(topBar("Mission Completed"),wrap());col.addView(new IconView(this,"successLarge"),new LinearLayout.LayoutParams(dp(88),dp(88)));col.addView(text("Mission Completed!",24,INK,true),marginTop(10));col.addView(text("Your AI mission has been successfully completed.",10,MUTED,false),marginBottom(12));LinearLayout stats=cardRow();stats.addView(stat("12","Files"),weightChild());stats.addView(stat("3","Tests"),weightChild());stats.addView(stat("2.4m","Total Time"),weightChild());stats.addView(stat("100%","Verified"),weightChild());col.addView(stats,marginBottom(10));Button view=button("View Results",PURPLE,WHITE);view.setOnClickListener(v->navigate(2));Button start=button("Start New Mission",NAVY,WHITE);start.setOnClickListener(v->navigate(0));col.addView(view,marginBottom(7));col.addView(start);pageHost.addView(col,full());}
-
-    private LinearLayout topBar(String title){LinearLayout wrap=new LinearLayout(this);wrap.setOrientation(LinearLayout.VERTICAL);LinearLayout bar=new LinearLayout(this);bar.setGravity(Gravity.CENTER_VERTICAL);IconView menu=new IconView(this,"hamburger");menu.setOnClickListener(v->openDrawer());bar.addView(menu,new LinearLayout.LayoutParams(dp(36),dp(36)));IconView logo=new IconView(this,"logo");bar.addView(logo,new LinearLayout.LayoutParams(dp(34),dp(34)));TextView brand=text("VEYTRIX",15,INK,true);brand.setPadding(dp(8),0,0,0);bar.addView(brand,new LinearLayout.LayoutParams(0,-1,1));bar.addView(new IconView(this,"profile"),new LinearLayout.LayoutParams(dp(36),dp(36)));wrap.addView(bar,new LinearLayout.LayoutParams(-1,dp(40)));if(title!=null&&!title.isEmpty())wrap.addView(text(title,25,INK,true),marginTop(5));return wrap;}
-
-    private LinearLayout pageColumn(){LinearLayout col=new LinearLayout(this);col.setOrientation(LinearLayout.VERTICAL);return col;}
-    private ScrollView scrollWrap(View child){ScrollView s=new ScrollView(this);s.setFillViewport(true);s.setVerticalScrollBarEnabled(false);s.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);if(child.getParent()!=null)((ViewGroup)child.getParent()).removeView(child);s.addView(child);return s;}
-    private LinearLayout cardColumn(){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setPadding(dp(10),dp(8),dp(10),dp(8));c.setBackground(roundDrawable(WHITE,16,BORDER));c.setElevation(dp(2));return c;}
-    private LinearLayout cardRow(){LinearLayout c=new LinearLayout(this);c.setGravity(Gravity.CENTER_VERTICAL);c.setPadding(dp(10),dp(8),dp(10),dp(8));c.setBackground(roundDrawable(WHITE,16,BORDER));c.setElevation(dp(2));return c;}
-    private LinearLayout stat(String value,String label){LinearLayout c=new LinearLayout(this);c.setOrientation(LinearLayout.VERTICAL);c.setGravity(Gravity.CENTER);c.addView(text(value,15,INK,true),new LinearLayout.LayoutParams(-1,dp(20)));c.addView(text(label,7,MUTED,false),new LinearLayout.LayoutParams(-1,dp(16)));return c;}
-    private LinearLayout.LayoutParams weightChild(){return new LinearLayout.LayoutParams(0,dp(52),1);}
-    private Button button(String label,int background,int fg){Button b=new Button(this);b.setText(label);b.setTextSize(10);b.setTextColor(fg);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setBackground(roundDrawable(background,12,background==WHITE?BORDER:background));b.setPadding(0,0,0,0);return b;}
     private TextView text(String s,float size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create(Typeface.DEFAULT,bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false);return t;}
     private GradientDrawable roundDrawable(int fill,int radius,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));if(stroke!=Color.TRANSPARENT)d.setStroke(Math.max(1,dp(1)),stroke);return d;}
     private ViewGroup.LayoutParams marginBottom(int px){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(px);return p;}
@@ -499,17 +573,15 @@ public final class MainActivity extends Activity {
     private void toast(String msg){Toast.makeText(this,msg,Toast.LENGTH_SHORT).show();}
     private int dp(int n){return Math.round(n*getResources().getDisplayMetrics().density);}
     private int dp(float n){return Math.round(n*getResources().getDisplayMetrics().density);}
+    private int withAlpha(int color, int alpha){return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));}
     private FrameLayout.LayoutParams full(){return new FrameLayout.LayoutParams(-1,-1);}
 
     private final class IconView extends View {
         private final String kind; private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);
         IconView(Context c,String kind){super(c);this.kind=kind;setContentDescription(kind);}
-        @Override protected void onDraw(Canvas c){float x=getWidth()/2f,y=getHeight()/2f,s=Math.min(getWidth(),getHeight())/32f;int col=INK;if(kind.equals("logo")||kind.equals("spark"))col=PURPLE;else if(kind.equals("test")||kind.equals("done")||kind.equals("check")||kind.equals("bell")||kind.equals("successLarge"))col=GREEN;else if(kind.equals("android")||kind.equals("code")||kind.equals("document")||kind.equals("mission")||kind.equals("activity")||kind.equals("results"))col=BLUE;p.setColor(col);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(1,dp(1.6f)));p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);draw(c,x,y,s);}
-        private void draw(Canvas c,float x,float y,float s){if(kind.equals("hamburger")){line(c,x-7*s,y-5*s,x+7*s,y-5*s);line(c,x-7*s,y,x+7*s,y);line(c,x-7*s,y+5*s,x+7*s,y+5*s);}else if(kind.equals("logo")){Path q=new Path();q.moveTo(x-9*s,y-10*s);q.lineTo(x,y+9*s);q.lineTo(x+9*s,y-10*s);q.close();c.drawPath(q,p);}else if(kind.equals("profile")||kind.equals("profileLarge")){c.drawCircle(x,y-4*s,4*s,p);c.drawRoundRect(new RectF(x-7*s,y+1*s,x+7*s,y+9*s),4*s,4*s,p);}else if(kind.equals("check")||kind.equals("done")){line(c,x-7*s,y,x-1*s,y+6*s);line(c,x-1*s,y+6*s,x+8*s,y-7*s);}else if(kind.equals("database")){c.drawOval(new RectF(x-7*s,y-6*s,x+7*s,y),p);c.drawArc(new RectF(x-7*s,y-2*s,x+7*s,y+9*s),0,180,false,p);}else if(kind.equals("document")||kind.equals("report")){c.drawRect(new RectF(x-6*s,y-8*s,x+6*s,y+8*s),p);line(c,x-3*s,y-2*s,x+3*s,y-2*s);line(c,x-3*s,y+2*s,x+3*s,y+2*s);}else if(kind.equals("code")){line(c,x-4*s,y,x-8*s,y+4*s);line(c,x-8*s,y+4*s,x-4*s,y+8*s);line(c,x+4*s,y,x+8*s,y+4*s);line(c,x+8*s,y+4*s,x+4*s,y+8*s);}else if(kind.equals("android")){c.drawRoundRect(new RectF(x-7*s,y-5*s,x+7*s,y+7*s),2*s,2*s,p);line(c,x-5*s,y-5*s,x-2*s,y-10*s);line(c,x+5*s,y-5*s,x+2*s,y-10*s);}else if(kind.equals("archive")){c.drawRect(new RectF(x-8*s,y-6*s,x+8*s,y+6*s),p);}else if(kind.equals("mission")){c.drawRect(new RectF(x-7*s,y-7*s,x+7*s,y+7*s),p);line(c,x-4*s,y-2*s,x+4*s,y-2*s);}else if(kind.equals("alert")){Path q=new Path();q.moveTo(x,y-8*s);q.lineTo(x+8*s,y+7*s);q.lineTo(x-8*s,y+7*s);q.close();c.drawPath(q,p);}else if(kind.equals("model")){c.drawCircle(x,y,7*s,p);c.drawCircle(x,y,2*s,p);}else if(kind.equals("fallback")){c.drawArc(new RectF(x-7*s,y-7*s,x+7*s,y+7*s),-60,250,false,p);}else if(kind.equals("clock")){c.drawCircle(x,y,7*s,p);line(c,x,y,x+4*s,y+3*s);line(c,x,y,x,y-4*s);}else if(kind.equals("spark")){line(c,x,y-9*s,x,y+9*s);line(c,x-9*s,y,x+9*s,y);}else if(kind.equals("voice")){c.drawRoundRect(new RectF(x-4*s,y-8*s,x+4*s,y+3*s),4*s,4*s,p);c.drawArc(new RectF(x-9*s,y-1*s,x+9*s,y+10*s),0,180,false,p);}else if(kind.equals("attach")){Path q=new Path();q.moveTo(x-2*s,y-7*s);q.cubicTo(x-10*s,y+s,x+s*1,y+10*s,x+6*s,y+5*s);c.drawPath(q,p);}else if(kind.equals("launch")){Path q=new Path();q.moveTo(x-5*s,y-7*s);q.lineTo(x+7*s,y);q.lineTo(x-5*s,y+7*s);q.close();c.drawPath(q,p);}else if(kind.equals("bell")){c.drawRoundRect(new RectF(x-6*s,y-6*s,x+6*s,y+6*s),4*s,4*s,p);line(c,x-8*s,y+8*s,x+8*s,y+8*s);}else if(kind.equals("settings")||kind.equals("gear")){c.drawCircle(x,y,7*s,p);c.drawCircle(x,y,2*s,p);}else if(kind.equals("appearance")){c.drawCircle(x,y,7*s,p);line(c,x,y-7*s,x,y+7*s);}else if(kind.equals("privacy")){c.drawRect(new RectF(x-6*s,y-5*s,x+6*s,y+7*s),p);}else if(kind.equals("info")){c.drawCircle(x,y,7*s,p);line(c,x,y-2*s,x,y+5*s);}else if(kind.equals("support")){c.drawArc(new RectF(x-8*s,y-8*s,x+8*s,y+8*s),20,140,false,p);}else if(kind.equals("successLarge")){p.setStyle(Paint.Style.FILL);p.setColor(GREEN);c.drawCircle(x,y,Math.min(getWidth(),getHeight())*.42f,p);p.setStyle(Paint.Style.STROKE);p.setColor(WHITE);p.setStrokeWidth(dp(3));line(c,x-11,y,x-3,y+9);line(c,x-3,y+9,x+13,y-12);}else {p.setStyle(Paint.Style.FILL);p.setColor(MUTED);c.drawCircle(x,y,4*s,p);}p.setStyle(Paint.Style.FILL);}
+        @Override protected void onDraw(Canvas c){float x=getWidth()/2f,y=getHeight()/2f,s=Math.min(getWidth(),getHeight())/32f;int col=VeytrixDesignTokens.TEXT_PRIMARY;if(kind.equals("logo")||kind.equals("spark"))col=VeytrixDesignTokens.PURPLE;else if(kind.equals("test")||kind.equals("done")||kind.equals("check")||kind.equals("bell")||kind.equals("successLarge"))col=VeytrixDesignTokens.STATE_VERIFIED;else if(kind.equals("android")||kind.equals("code")||kind.equals("document")||kind.equals("mission")||kind.equals("activity")||kind.equals("results"))col=VeytrixDesignTokens.VIOLET;p.setColor(col);p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(Math.max(1,dp(1.6f)));p.setStrokeCap(Paint.Cap.ROUND);p.setStrokeJoin(Paint.Join.ROUND);draw(c,x,y,s);}
+        private void draw(Canvas c,float x,float y,float s){if(kind.equals("hamburger")){line(c,x-7*s,y-5*s,x+7*s,y-5*s);line(c,x-7*s,y,x+7*s,y);line(c,x-7*s,y+5*s,x+7*s,y+5*s);}else if(kind.equals("logo")){Path q=new Path();q.moveTo(x-9*s,y-10*s);q.lineTo(x,y+9*s);q.lineTo(x+9*s,y-10*s);q.close();c.drawPath(q,p);}else if(kind.equals("profile")||kind.equals("profileLarge")){c.drawCircle(x,y-4*s,4*s,p);c.drawRoundRect(new RectF(x-7*s,y+1*s,x+7*s,y+9*s),4*s,4*s,p);}else if(kind.equals("check")||kind.equals("done")){line(c,x-7*s,y,x-1*s,y+6*s);line(c,x-1*s,y+6*s,x+8*s,y-7*s);}else if(kind.equals("database")){c.drawOval(new RectF(x-7*s,y-6*s,x+7*s,y),p);c.drawArc(new RectF(x-7*s,y-2*s,x+7*s,y+9*s),0,180,false,p);}else if(kind.equals("document")||kind.equals("report")){c.drawRect(new RectF(x-6*s,y-8*s,x+6*s,y+8*s),p);line(c,x-3*s,y-2*s,x+3*s,y-2*s);line(c,x-3*s,y+2*s,x+3*s,y+2*s);}else if(kind.equals("code")){line(c,x-4*s,y,x-8*s,y+4*s);line(c,x-8*s,y+4*s,x-4*s,y+8*s);line(c,x+4*s,y,x+8*s,y+4*s);line(c,x+8*s,y+4*s,x+4*s,y+8*s);}else if(kind.equals("android")){c.drawRoundRect(new RectF(x-7*s,y-5*s,x+7*s,y+7*s),2*s,2*s,p);line(c,x-5*s,y-5*s,x-2*s,y-10*s);line(c,x+5*s,y-5*s,x+2*s,y-10*s);}else if(kind.equals("archive")){c.drawRect(new RectF(x-8*s,y-6*s,x+8*s,y+6*s),p);}else if(kind.equals("mission")){c.drawRect(new RectF(x-7*s,y-7*s,x+7*s,y+7*s),p);line(c,x-4*s,y-2*s,x+4*s,y-2*s);}else if(kind.equals("alert")){Path q=new Path();q.moveTo(x,y-8*s);q.lineTo(x+8*s,y+7*s);q.lineTo(x-8*s,y+7*s);q.close();c.drawPath(q,p);}else if(kind.equals("model")){c.drawCircle(x,y,7*s,p);c.drawCircle(x,y,2*s,p);}else if(kind.equals("fallback")){c.drawArc(new RectF(x-7*s,y-7*s,x+7*s,y+7*s),-60,250,false,p);}else if(kind.equals("clock")){c.drawCircle(x,y,7*s,p);line(c,x,y,x+4*s,y+3*s);line(c,x,y,x,y-4*s);}else if(kind.equals("spark")){line(c,x,y-9*s,x,y+9*s);line(c,x-9*s,y,x+9*s,y);}else if(kind.equals("voice")){c.drawRoundRect(new RectF(x-4*s,y-8*s,x+4*s,y+3*s),4*s,4*s,p);c.drawArc(new RectF(x-9*s,y-1*s,x+9*s,y+10*s),0,180,false,p);}else if(kind.equals("attach")){Path q=new Path();q.moveTo(x-2*s,y-7*s);q.cubicTo(x-10*s,y+s,x+s*1,y+10*s,x+6*s,y+5*s);c.drawPath(q,p);}else if(kind.equals("launch")){Path q=new Path();q.moveTo(x-5*s,y-7*s);q.lineTo(x+7*s,y);q.lineTo(x-5*s,y+7*s);q.close();c.drawPath(q,p);}else if(kind.equals("bell")){c.drawRoundRect(new RectF(x-6*s,y-6*s,x+6*s,y+6*s),4*s,4*s,p);line(c,x-8*s,y+8*s,x+8*s,y+8*s);}else if(kind.equals("settings")||kind.equals("gear")){c.drawCircle(x,y,7*s,p);c.drawCircle(x,y,2*s,p);}else if(kind.equals("appearance")){c.drawCircle(x,y,7*s,p);line(c,x,y-7*s,x,y+7*s);}else if(kind.equals("privacy")){c.drawRect(new RectF(x-6*s,y-5*s,x+6*s,y+7*s),p);}else if(kind.equals("info")){c.drawCircle(x,y,7*s,p);line(c,x,y-2*s,x,y+5*s);}else if(kind.equals("support")){c.drawArc(new RectF(x-8*s,y-8*s,x+8*s,y+8*s),20,140,false,p);}else if(kind.equals("successLarge")){p.setStyle(Paint.Style.FILL);p.setColor(VeytrixDesignTokens.STATE_VERIFIED);c.drawCircle(x,y,Math.min(getWidth(),getHeight())*.42f,p);p.setStyle(Paint.Style.STROKE);p.setColor(VeytrixDesignTokens.WHITE);p.setStrokeWidth(dp(3));line(c,x-11,y,x-3,y+9);line(c,x-3,y+9,x+13,y-12);}else {p.setStyle(Paint.Style.FILL);p.setColor(VeytrixDesignTokens.TEXT_SECONDARY);c.drawCircle(x,y,4*s,p);}p.setStyle(Paint.Style.FILL);}
         private void line(Canvas c,float a,float b,float d,float e){c.drawLine(a,b,d,e,p);}
     }
 
-    private static final class ProgressView extends View {private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private final String progress;private final int color;ProgressView(Context c,String progress,int color){super(c);this.progress=progress;this.color=color;}@Override protected void onDraw(Canvas c){float pct=0;try{pct=Float.parseFloat(progress.replace("%",""))/100f;}catch(Exception ignored){}p.setColor(Color.rgb(229,236,246));c.drawRoundRect(new RectF(0,0,getWidth(),getHeight()),getHeight(),getHeight(),p);p.setColor(color);c.drawRoundRect(new RectF(0,0,getWidth()*pct,getHeight()),getHeight(),getHeight(),p);}}
-    private static final class ToggleView extends View {private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private boolean on;ToggleView(Context c,boolean on){super(c);this.on=on;}boolean isOn(){return on;}@Override protected void onDraw(Canvas c){p.setColor(on?BLUE:Color.rgb(220,228,239));c.drawRoundRect(new RectF(0,0,getWidth(),getHeight()),getHeight()/2f,getHeight()/2f,p);p.setColor(WHITE);float d=getHeight()-4;float cx=on?getWidth()-2-d/2f:2+d/2f;c.drawCircle(cx,getHeight()/2f,d/2f,p);}}
-    private static final class VoiceView extends View {private final Paint p=new Paint(Paint.ANTI_ALIAS_FLAG);private boolean listening;VoiceView(Context c){super(c);setLayerType(View.LAYER_TYPE_SOFTWARE,null);}void setListening(boolean v){listening=v;invalidate();}@Override protected void onDraw(Canvas c){float cx=getWidth()/2f,cy=getHeight()/2f;p.setStyle(Paint.Style.STROKE);p.setStrokeWidth(2);p.setColor(BLUE);c.drawCircle(cx,cy,82,p);p.setColor(PURPLE);c.drawCircle(cx,cy,62,p);p.setStyle(Paint.Style.FILL);p.setColor(listening?GREEN:PURPLE);c.drawCircle(cx,cy,44,p);p.setColor(WHITE);c.drawRoundRect(new RectF(cx-8,cy-21,cx+8,cy+15),8,8,p);p.setStyle(Paint.Style.STROKE);p.setColor(WHITE);c.drawArc(new RectF(cx-19,cy-4,cx+19,cy+25),0,180,false,p);c.drawLine(cx,cy+25,cx,cy+34,p);p.setStyle(Paint.Style.FILL);}}
 }
