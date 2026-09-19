@@ -57,7 +57,8 @@ require_text 'VEYTRIX_KEYSTORE_BASE64' "$publish"
 require_text 'build_commit="$(git rev-parse HEAD)"' "$publish"
 require_text 'jq -n' "$publish"
 require_text '--target "$BUILD_COMMIT"' "$publish"
-require_text 'already exists; refusing to replace published OTA assets.' "$publish"
+require_text 'already has a GitHub release; refusing to replace published OTA assets.' "$publish"
+require_text 'already exists; refusing to reuse an immutable OTA tag.' "$publish"
 if grep -Fq 'gh release upload' "$publish" || grep -Fq -- '--clobber' "$publish"; then
   echo 'OTA publisher must not replace assets under an existing release tag.' >&2
   exit 1
