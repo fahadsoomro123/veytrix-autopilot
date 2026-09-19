@@ -72,28 +72,36 @@ public final class VeytrixUpdateClient {
 
     private UpdateInfo parseRelease(JSONObject release) throws Exception {
         String tag = release.optString("tag_name", "").trim();
-        if (tag.isEmpty()) throw new IllegalStateException("Release has no tag");
+        if (!tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?")) {
+            throw new SecurityException("Release tag is not semantic-versioned");
+        }
         JSONArray assets = release.optJSONArray("assets");
         if (assets == null) throw new IllegalStateException("Release has no assets");
 
         JSONObject apk = null;
+        int matchingAssets = 0;
         for (int i = 0; i < assets.length(); i++) {
             JSONObject candidate = assets.getJSONObject(i);
             String name = candidate.optString("name", "");
             if ("veytrix-autopilot-release.apk".equals(name) ||
                     "autopilot-release.apk".equals(name)) {
+                matchingAssets++;
                 apk = candidate;
-                break;
             }
         }
-        if (apk == null) throw new IllegalStateException("Latest release has no VEYTRIX APK asset");
+        if (matchingAssets == 0) {
+            throw new IllegalStateException("Latest release has no VEYTRIX APK asset");
+        }
+        if (matchingAssets > 1) {
+            throw new SecurityException("Latest release has ambiguous VEYTRIX APK assets");
+        }
 
         String url = apk.optString("browser_download_url", "").trim();
         String digest = apk.optString("digest", "").trim().toLowerCase();
-        if (!url.startsWith(RELEASE_DOWNLOAD_PREFIX)) {
-            throw new SecurityException("Release APK URL is outside the trusted GitHub release path");
+        if (!url.startsWith(RELEASE_DOWNLOAD_PREFIX + tag + "/")) {
+            throw new SecurityException("Release APK URL does not match the published release tag");
         }
-        if (!digest.startsWith("sha256:") || digest.length() != 71) {
+        if (!digest.matches("sha256:[0-9a-f]{64}")) {
             throw new SecurityException("Release APK does not expose a valid SHA-256 digest");
         }
 
