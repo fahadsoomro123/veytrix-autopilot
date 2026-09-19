@@ -10,6 +10,7 @@ test -f "$core"
 test -f "$ROOT/free-ai-mesh/free_ai_mesh_canary.mjs"
 test -f "$ROOT/free-ai-mesh/veytrix_ai_router_canary.mjs"
 test -f "$agent"
+test -f "$ROOT/scripts/verify_veytrix_mesh_patch_policy.sh"
 
 grep -Fq '3_000_000' "$core"
 grep -Fq 'candidateSequence' "$core"
@@ -42,6 +43,10 @@ if grep -Eq 'process\.env\.(OPENAI_API_KEY|VEYTRIX_GITHUB_TOKEN|VEYTRIX_KEYSTORE
   exit 1
 fi
 
+bash -n "$ROOT/scripts/decide_engine.sh"
+bash -n "$ROOT/scripts/test_decide_engine.sh"
+bash -n "$ROOT/scripts/verify_veytrix_mesh_contract.sh"
+bash -n "$ROOT/scripts/verify_veytrix_mesh_patch_policy.sh"
 node --check "$core"
 node --check "$agent"
 
