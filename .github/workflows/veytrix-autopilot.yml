@@ -1,0 +1,199 @@
+name: Veytrix Smart Autopilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      mission:
+        description: 'Autonomous engineering mission'
+        required: true
+        type: string
+      target_repository:
+        description: 'Target repository owner/name'
+        required: true
+        type: string
+      branch:
+        description: 'Target branch'
+        required: true
+        default: 'main'
+        type: string
+      engine:
+        description: 'Execution engine'
+        required: true
+        default: 'auto'
+        type: choice
+        options: [auto, github-free, ai]
+      verification_depth:
+        description: 'Maximum bounded verification handoffs'
+        required: true
+        default: '2'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: veytrix-autopilot-${{ inputs.target_repository }}-${{ inputs.branch }}
+  cancel-in-progress: false
+
+env:
+  MAX_VERIFICATION_HANDOFFS: '2'
+
+jobs:
+  mission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      AUTOPILOT_MISSION: ${{ inputs.mission }}
+      AUTOPILOT_TARGET_REPOSITORY: ${{ inputs.target_repository }}
+      AUTOPILOT_TARGET_BRANCH: ${{ inputs.branch }}
+      AUTOPILOT_ENGINE: ${{ inputs.engine }}
+      AUTOPILOT_VERIFICATION_DEPTH: ${{ inputs.verification_depth }}
+
+    steps:
+      - name: Checkout Veytrix core
+        uses: actions/checkout@v6
+        with:
+          ref: main
+          path: .veytrix-core
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate mission controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "\${AUTOPILOT_MISSION}"
+          test "\${#AUTOPILOT_MISSION}" -le 4000
+
+          if [[ ! "\${AUTOPILOT_TARGET_REPOSITORY}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+            echo 'Target repository must match the safe owner/repository form.'
+            exit 1
+          fi
+
+          if [[ "\${AUTOPILOT_TARGET_REPOSITORY}" == *..* ]]; then
+            echo 'Target repository contains an invalid path sequence.'
+            exit 1
+          fi
+
+          if [[ ! "\${AUTOPILOT_TARGET_BRANCH}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+            echo 'Target branch contains unsupported characters.'
+            exit 1
+          fi
+
+          git check-ref-format --branch "\${AUTOPILOT_TARGET_BRANCH}"
+
+          case "\${AUTOPILOT_ENGINE}" in
+            auto|github-free|ai) ;;
+            *) echo 'Invalid execution engine.'; exit 1 ;;
+          esac
+
+          [[ "\${AUTOPILOT_VERIFICATION_DEPTH}" =~ ^[0-9]+$ ]] || exit 1
+          [ "\${AUTOPILOT_VERIFICATION_DEPTH}" -le "\${MAX_VERIFICATION_HANDOFFS}" ] || exit 1
+
+      - name: Checkout target repository
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.target_repository }}
+          ref: ${{ inputs.branch }}
+          token: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+          path: target
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Repository preflight
+        working-directory: target
+        env:
+          AUTOPILOT_TARGET_REPOSITORY: ${{ inputs.target_repository }}
+        run: bash ../.veytrix-core/scripts/deterministic_inspect.sh .
+
+      - name: Deterministic verification attempt
+        id: deterministic
+        working-directory: target
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          bash ../.veytrix-core/scripts/deterministic_verify.sh . \
+            > /tmp/veytrix-deterministic-verification.log 2>&1
+          cat /tmp/veytrix-deterministic-verification.log
+
+      - name: Engine decision self-test
+        run: bash .veytrix-core/scripts/test_decide_engine.sh
+
+      - name: Determine engine
+        id: engine
+        env:
+          REQUESTED_ENGINE: ${{ inputs.engine }}
+          DETERMINISTIC_OUTCOME: \${{ steps.deterministic.outcome }}
+          MISSION: ${{ inputs.mission }}
+        run: |
+          set -euo pipefail
+          ai_available=false
+          if [[ -n "\${{ secrets.OPENAI_API_KEY }}" ]]; then
+            ai_available=true
+          fi
+          decision="\$(bash .veytrix-core/scripts/decide_engine.sh \
+            "\${REQUESTED_ENGINE}" "\${DETERMINISTIC_OUTCOME}" \
+            "\${MISSION}" "\${ai_available}")"
+          while IFS='=' read -r key value; do
+            printf '%s=%s\n' "\$key" "\$value" >> "\$GITHUB_OUTPUT"
+          done <<< "\$decision"
+          printf '%s\n' "\$decision"
+
+      - name: AI mission execution
+        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          working-directory: target
+          output-file: /tmp/veytrix-codex-result.txt
+          prompt: |
+            You are Veytrix Smart Autopilot operating on target repository
+            ${{ inputs.target_repository }} branch ${{ inputs.branch }}.
+
+            Mission:
+            ${{ inputs.mission }}
+
+            Contract:
+            - Inspect before editing.
+            - Make the smallest robust production-quality change.
+            - Never read, print, modify, or exfiltrate secrets, tokens,
+              credentials, signing keys, keystores, or environment secrets.
+            - Never disable tests, security controls, or verification.
+            - Do not commit or push; the outer workflow owns publication.
+            - Stop only when genuinely verified or a concrete blocker is proven.
+
+      - name: Deterministic-only result
+        if: \${{ steps.engine.outputs.selected == 'github-free' }}
+        run: |
+          set -euo pipefail
+          reason='\${{ steps.engine.outputs.reason }}'
+          if [[ "\${{ steps.deterministic.outcome }}" == 'success' ]] &&
+             [[ "\$reason" == deterministic-capability-sufficient* ]]; then
+            echo 'Deterministic capability was sufficient for this verification-only mission.'
+            exit 0
+          fi
+          echo 'GitHub-free mode cannot claim completion of an arbitrary implementation mission.'
+          exit 20
+
+      - name: Verify target repository after AI
+        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        working-directory: target
+        run: bash ../.veytrix-core/scripts/deterministic_verify.sh .
+
+      - name: Publish verified AI mission
+        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        working-directory: target
+        env:
+          GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if git diff --quiet && git diff --cached --quiet; then
+            echo 'No source changes produced by AI; refusing to claim a repair.'
+            exit 0
+          fi
+          git config user.name 'Veytrix Smart Autopilot'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --quiet || git commit -m 'veytrix: complete requested mission'
+          git -c "http.extraheader=AUTHORIZATION: bearer \${GH_TOKEN}" \
+            push origin "HEAD:\${AUTOPILOT_TARGET_BRANCH}"
