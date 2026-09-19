@@ -36,7 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
-      GH_TOKEN: ${{ github.token }}
       RUN_ID: ${{ github.event.workflow_run.id }}
       HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
@@ -73,6 +72,8 @@ jobs:
           fi
 
       - name: Collect sanitized failure evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -112,6 +113,8 @@ jobs:
 
       - name: Deterministic transient recovery
         if: steps.blocker.outputs.blocked != 'true' && steps.fingerprint.outputs.classification == 'transient'
+        env:
+          GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
@@ -354,6 +357,7 @@ jobs:
       - name: Publish verified repair with stale-HEAD protection
         if: steps.verified.outputs.publish == 'true'
         env:
+          GH_TOKEN: ${{ github.token }}
           FINGERPRINT: ${{ steps.fingerprint.outputs.fingerprint }}
         working-directory: target
         shell: bash
