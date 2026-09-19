@@ -183,7 +183,7 @@ public final class VeytrixUpdateClient {
         connection.setReadTimeout(30000);
         connection.setInstanceFollowRedirects(false);
         connection.setRequestProperty("Accept", "application/vnd.github+json");
-        connection.setRequestProperty("X-GitHub-Api-Version", "2022-11-28");
+        connection.setRequestProperty("X-GitHub-Api-Version", "2026-03-10");
         connection.setRequestProperty("User-Agent", "Veytrix-Android-OTA");
         try {
             int code = connection.getResponseCode();
@@ -202,9 +202,16 @@ public final class VeytrixUpdateClient {
 
     private String read(InputStream stream) throws Exception {
         if (stream == null) return "";
-        byte[] bytes = stream.readAllBytes();
-        if (bytes.length > 2 * 1024 * 1024) throw new SecurityException("GitHub response is too large");
-        return new String(bytes, StandardCharsets.UTF_8);
+        java.io.ByteArrayOutputStream output = new java.io.ByteArrayOutputStream();
+        byte[] buffer = new byte[8192];
+        int read;
+        while ((read = stream.read(buffer)) != -1) {
+            output.write(buffer, 0, read);
+            if (output.size() > 2 * 1024 * 1024) {
+                throw new SecurityException("GitHub response is too large");
+            }
+        }
+        return output.toString(StandardCharsets.UTF_8.name());
     }
 
     private static String hex(byte[] bytes) {
