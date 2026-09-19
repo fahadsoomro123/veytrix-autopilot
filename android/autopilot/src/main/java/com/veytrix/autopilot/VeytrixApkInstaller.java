@@ -84,10 +84,13 @@ public final class VeytrixApkInstaller {
         }
 
         PackageManager packageManager = context.getPackageManager();
-        PackageInfo current = packageManager.getPackageInfo(context.getPackageName(),
-                PackageManager.GET_SIGNING_CERTIFICATES);
+        int signingFlags = Build.VERSION.SDK_INT >= 28
+                ? PackageManager.GET_SIGNING_CERTIFICATES
+                : PackageManager.GET_SIGNATURES;
+        PackageInfo current = packageManager.getPackageInfo(
+                context.getPackageName(), signingFlags);
         PackageInfo update = packageManager.getPackageArchiveInfo(
-                apk.getAbsolutePath(), PackageManager.GET_SIGNING_CERTIFICATES);
+                apk.getAbsolutePath(), signingFlags);
         if (update == null || !context.getPackageName().equals(update.packageName)) {
             throw new SecurityException("Update package identity mismatch");
         }
