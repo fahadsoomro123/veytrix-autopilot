@@ -376,29 +376,16 @@ public final class MainActivity extends Activity {
         dialog.show();
     }
 
-    private void showActivity(){
-        clearPage(); LinearLayout col=pageColumn(); col.addView(topBar("Activity"),wrap());
-        col.addView(text("Track, monitor and manage your AI missions.",11,MUTED,false),marginBottom(9));
-        col.addView(filterRow(),wrap());
-        addMissionCard(col,"E-commerce API","Building scalable backend services","67%","Running",GREEN);
-        addMissionCard(col,"Modern UI Components","Generating 24 components","100%","Completed",GREEN);
-        addMissionCard(col,"Database Optimization","Analyzing and optimizing","0%","Queued",MUTED);
-        addMissionCard(col,"Mobile App Setup","Setting up native Android project","0%","Failed",RED);
-        addMissionCard(col,"AI Chat Integration","Integrating AI capabilities","100%","Completed",GREEN);
-        pageHost.addView(scrollWrap(col),full());
-    }
-
-    private HorizontalScrollView filterRow(){
-        HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);
-        String[] fs={"All","Running","Completed","Failed"};for(String f:fs){TextView chip=text(f,9,f.equals("All")?WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setPadding(dp(13),0,dp(13),0);chip.setBackground(roundDrawable(f.equals("All")?BLUE:Color.rgb(242,246,252),12,f.equals("All")?BLUE:BORDER));chip.setOnClickListener(v->toast(f+" filter selected"));row.addView(chip,new LinearLayout.LayoutParams(-2,dp(32)));space(row,6,1);}hs.addView(row);return hs;
-    }
-
-    private void addMissionCard(LinearLayout col,String title,String desc,String progress,String status,int color){
-        LinearLayout card=cardColumn();LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(new IconView(this,status.equals("Failed")?"alert":"mission"),new LinearLayout.LayoutParams(dp(32),dp(32)));
-        LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(10),0,dp(8),0);info.addView(text(title,11,INK,true));info.addView(text(desc,8,MUTED,false));row.addView(info,new LinearLayout.LayoutParams(0,-2,1));
-        TextView st=text(status,8,color,true);st.setGravity(Gravity.CENTER);st.setPadding(dp(7),dp(5),dp(7),dp(5));st.setBackground(roundDrawable(Color.argb(24,Color.red(color),Color.green(color),Color.blue(color)),9,Color.TRANSPARENT));row.addView(st,new LinearLayout.LayoutParams(-2,dp(27)));card.addView(row);
-        ProgressView bar=new ProgressView(this,progress,BLUE);LinearLayout.LayoutParams barLp=new LinearLayout.LayoutParams(-1,dp(5));barLp.topMargin=dp(8);card.addView(bar,barLp);card.setOnClickListener(v->showDetails(title,desc,status));col.addView(card,marginBottom(7));
+    private void showActivity() {
+        clearPage();
+        pageHost.addView(
+                new VeytrixActivityView(
+                        this,
+                        autopilotClient,
+                        () -> showConnectionDialog()
+                ),
+                full()
+        );
     }
 
     private void showResults(){
