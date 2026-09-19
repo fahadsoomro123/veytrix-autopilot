@@ -16,6 +16,7 @@ on:
       - 'scripts/**'
       - 'docs/ANDROID-RELEASE.md'
       - 'scripts/verify_veytrix_control_plane_contract.sh'
+      - 'scripts/verify_veytrix_android_security_contract.sh'
       - '.github/workflows/build-android.yml'
       - '.github/workflows/veytrix-autopilot.yml'
 
