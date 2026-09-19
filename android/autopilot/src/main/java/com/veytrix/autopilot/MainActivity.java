@@ -155,10 +155,45 @@ public final class MainActivity extends Activity {
             item.addView(icon, new LinearLayout.LayoutParams(dp(24), dp(24)));
             item.addView(text, new LinearLayout.LayoutParams(-1, dp(17)));
 
+            View activeMarker = new View(this);
+            activeMarker.setTag("bottom-nav-marker");
+            LinearLayout.LayoutParams markerLp = new LinearLayout.LayoutParams(dp(24), dp(3));
+            markerLp.gravity = Gravity.CENTER_HORIZONTAL;
+            item.addView(activeMarker, markerLp);
+
             item.setOnClickListener(v -> navigate(page));
             nav.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
         }
+        refreshBottomNavSelection(nav);
         return nav;
+    }
+
+    private void refreshBottomNavSelection() {
+        refreshBottomNavSelection(bottomNav);
+    }
+
+    private void refreshBottomNavSelection(LinearLayout nav) {
+        if (nav == null) return;
+        for (int i = 0; i < nav.getChildCount(); i++) {
+            View child = nav.getChildAt(i);
+            boolean selected = i == currentPage && currentPage >= 0 && currentPage < 4;
+            child.setBackgroundColor(Color.TRANSPARENT);
+            if (child instanceof LinearLayout) {
+                LinearLayout item = (LinearLayout) child;
+                View marker = item.findViewWithTag("bottom-nav-marker");
+                if (marker != null) {
+                    marker.setBackgroundColor(selected
+                            ? VeytrixDesignTokens.VIOLET
+                            : Color.TRANSPARENT);
+                }
+                if (item.getChildCount() > 1 && item.getChildAt(1) instanceof TextView) {
+                    TextView label = (TextView) item.getChildAt(1);
+                    label.setTextColor(selected
+                            ? VeytrixDesignTokens.VIOLET
+                            : VeytrixDesignTokens.TEXT_SECONDARY);
+                }
+            }
+        }
     }
 
     private void buildDrawer() {
@@ -223,7 +258,7 @@ public final class MainActivity extends Activity {
     private void openDrawer(){rebuildDrawer();drawerShade.setVisibility(View.VISIBLE);drawer.setVisibility(View.VISIBLE);}
     private void closeDrawer(){drawerShade.setVisibility(View.GONE);drawer.setVisibility(View.GONE);}
 
-    private void navigate(int page){currentPage=page;if(page==0)showHome();else if(page==1)showActivity();else if(page==2)showResults();else if(page==3)showControl();else showMore();}
+    private void navigate(int page){currentPage=page;refreshBottomNavSelection();if(page==0)showHome();else if(page==1)showActivity();else if(page==2)showResults();else if(page==3)showControl();else showMore();}
     private void clearPage(){
         closeDrawer();
         if (activeVoiceView != null) {
