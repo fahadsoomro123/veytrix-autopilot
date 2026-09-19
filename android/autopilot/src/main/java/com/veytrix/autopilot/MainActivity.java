@@ -24,6 +24,7 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Space;
 import android.widget.Toast;
 
 import androidx.core.view.WindowCompat;
@@ -563,7 +564,7 @@ public final class MainActivity extends Activity {
         showControl();
     }
 
-    private TextView text(String s,float size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create(Typeface.DEFAULT,bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false);return t;}
+    private Button button(String label, int background, int fg){Button b=new Button(this);b.setText(label);b.setTextSize(11);b.setTextColor(fg);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(48));b.setMinWidth(dp(48));b.setBackground(roundDrawable(background,14,background==VeytrixDesignTokens.WHITE?VeytrixDesignTokens.SILVER:background));return b;}\n    private TextView text(String s,float size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create(Typeface.DEFAULT,bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false);return t;}
     private GradientDrawable roundDrawable(int fill,int radius,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));if(stroke!=Color.TRANSPARENT)d.setStroke(Math.max(1,dp(1)),stroke);return d;}
     private ViewGroup.LayoutParams marginBottom(int px){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(px);return p;}
     private ViewGroup.LayoutParams marginTop(int px){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(px);return p;}
