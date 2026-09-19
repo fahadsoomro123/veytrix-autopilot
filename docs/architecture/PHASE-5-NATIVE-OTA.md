@@ -31,6 +31,10 @@ The update surface never auto-installs, never downgrades the app, and never bypa
 
 Normal app update installs are monotonic by version code. A lower-version release is rejected. An effective rollback therefore requires a separately signed recovery release built from an older source revision with a newer version code; this is a future release-publishing capability, not a client-side downgrade bypass.
 
+## Release publication integrity
+
+The release publisher binds the published GitHub tag to the exact commit that produced the signed APK. Release tags are semantic-version formatted, existing tags are never overwritten, and OTA metadata is generated with structured JSON encoding rather than raw string interpolation. This prevents a published tag or its assets from being silently replaced by a build from a different source revision.
+
 ## Lock gate
 
-Phase 5 is only lockable after the OTA contract, Android build, APK identity verification, release workflow validation, and on-device install/update test all pass.
+Phase 5 is only lockable after the OTA contract, Android build, APK identity verification, signed release workflow validation, and on-device install/update test all pass.
