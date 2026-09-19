@@ -57,16 +57,7 @@ public final class MainActivity extends Activity {
     private VeytrixAutopilotClient autopilotClient;
     private int systemBarTopInset;
     private int systemBarBottomInset;
-    private boolean deepMode = true;
-    private boolean voiceListening = false;
 
-    private boolean autoExecute = true;
-    private boolean autoTest = true;
-    private boolean parallelAgents = true;
-    private boolean notifications = true;
-    private String primaryModel = "GPT-4o";
-    private int fallbackModels = 3;
-    private String maxExecutionTime = "30 minutes";
 
     private int currentPage = 0; // 0 Home, 1 Activity, 2 Results, 3 Control, 4 More
 
@@ -400,33 +391,17 @@ public final class MainActivity extends Activity {
         );
     }
 
-    private void showControl(){
-        clearPage();LinearLayout col=pageColumn();col.addView(topBar("Control Center"),wrap());col.addView(text("Configure and control your AI environment.",10,MUTED,false),marginBottom(4));
-        col.addView(text("Mission Control",9,INK,true),margin(0,4,0,3));LinearLayout missionCard=cardColumn();missionCard.addView(liveRow("Deep Mode","Reasoning and planning","deep",deepMode,"spark"),rowHeight());missionCard.addView(liveRow("Auto Execute","Automatic action execution","auto",autoExecute,"execute"),rowHeight());missionCard.addView(liveRow("Auto Test","Verify generated changes","test",autoTest,"test"),rowHeight());col.addView(missionCard,marginBottom(6));
-        col.addView(text("AI Models",9,INK,true),margin(0,2,0,3));LinearLayout ai=cardColumn();ai.addView(clickRow("Primary Model",primaryModel,"model","primary"),rowHeight());ai.addView(clickRow("Fallback Models",fallbackModels+" configured","fallback","fallback"),rowHeight());col.addView(ai,marginBottom(6));
-        col.addView(text("Execution",9,INK,true),margin(0,2,0,3));LinearLayout exec=cardColumn();exec.addView(clickRow("Max Execution Time",maxExecutionTime,"clock","time"),rowHeight());exec.addView(liveRow("Parallel Agents","Run compatible tasks together","parallel",parallelAgents,"agents"),rowHeight());col.addView(exec,marginBottom(6));
-        col.addView(text("Alerts",9,INK,true),margin(0,2,0,3));LinearLayout alerts=cardColumn();alerts.addView(liveRow("Notifications","Updates and mission alerts","notifications",notifications,"bell"),rowHeight());col.addView(alerts);
-        pageHost.addView(col,full());
+    private void showControl() {
+        clearPage();
+        pageHost.addView(
+                new VeytrixControlView(
+                        this,
+                        autopilotClient,
+                        () -> showConnectionDialog()
+                ),
+                full()
+        );
     }
-
-    private ViewGroup.LayoutParams rowHeight(){return new LinearLayout.LayoutParams(-1,dp(44));}
-
-    private View liveRow(String title,String subtitle,String key,boolean on,String icon){
-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(4),dp(10),dp(4));row.addView(new IconView(this,icon),new LinearLayout.LayoutParams(dp(28),dp(28)));
-        LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.setPadding(dp(9),0,dp(8),0);copy.addView(text(title,9,INK,true));copy.addView(text(subtitle,7,MUTED,false));row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));
-        ToggleView toggle=new ToggleView(this,on);toggle.setOnClickListener(v->setToggle(key,!toggle.isOn()));row.addView(toggle,new LinearLayout.LayoutParams(dp(34),dp(20)));row.setOnClickListener(v->setToggle(key,!toggle.isOn()));return row;
-    }
-
-    private void setToggle(String key,boolean value){switch(key){case "deep":deepMode=value;break;case "auto":autoExecute=value;break;case "test":autoTest=value;break;case "parallel":parallelAgents=value;break;case "notifications":notifications=value;break;}showControl();toast(key+" "+(value?"enabled":"disabled"));}
-
-    private View clickRow(String title,String subtitle,String icon,String action){
-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(4),dp(10),dp(4));row.addView(new IconView(this,icon),new LinearLayout.LayoutParams(dp(28),dp(28)));LinearLayout copy=new LinearLayout(this);copy.setOrientation(LinearLayout.VERTICAL);copy.setPadding(dp(9),0,dp(8),0);copy.addView(text(title,9,INK,true));copy.addView(text(subtitle,7,MUTED,false));row.addView(copy,new LinearLayout.LayoutParams(0,-2,1));TextView arrow=text("›",15,MUTED,true);row.addView(arrow,new LinearLayout.LayoutParams(dp(18),-1));View.OnClickListener listener=v->{if("primary".equals(action))choosePrimary();else if("fallback".equals(action))chooseFallback();else chooseTime();};row.setOnClickListener(listener);arrow.setOnClickListener(listener);return row;
-    }
-
-    private void choosePrimary(){String[] options={"GPT-4o","Claude 3.5 Sonnet","Gemini 2.5 Pro","Qwen 2.5 Coder"};new AlertDialog.Builder(this).setTitle("Primary Model").setSingleChoiceItems(options,indexOf(options,primaryModel),(d,which)->{primaryModel=options[which];d.dismiss();showControl();toast("Primary model updated");}).show();}
-    private void chooseFallback(){String[] options={"1 fallback","2 fallbacks","3 fallbacks","4 fallbacks"};new AlertDialog.Builder(this).setTitle("Fallback Models").setSingleChoiceItems(options,fallbackModels-1,(d,which)->{fallbackModels=which+1;d.dismiss();showControl();toast("Fallback depth updated");}).show();}
-    private void chooseTime(){String[] options={"10 minutes","30 minutes","60 minutes"};new AlertDialog.Builder(this).setTitle("Maximum Execution Time").setSingleChoiceItems(options,indexOf(options,maxExecutionTime),(d,which)->{maxExecutionTime=options[which];d.dismiss();showControl();toast("Execution time updated");}).show();}
-    private int indexOf(String[] arr,String value){for(int i=0;i<arr.length;i++)if(arr[i].equals(value))return i;return 0;}
 
     private void showMore(){
         clearPage();LinearLayout col=pageColumn();col.addView(topBar("More"),wrap());col.addView(text("Account, preferences and system options.",10,MUTED,false),marginBottom(7));
