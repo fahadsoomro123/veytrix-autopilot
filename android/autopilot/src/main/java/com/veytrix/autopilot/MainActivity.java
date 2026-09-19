@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
     private FrameLayout drawerShade;
     private LinearLayout drawer;
     private VeytrixAutopilotClient autopilotClient;
+    private boolean voiceListening;
     private int systemBarTopInset;
     private int systemBarBottomInset;
 
@@ -403,17 +404,69 @@ public final class MainActivity extends Activity {
         );
     }
 
-    private void showMore(){
-        clearPage();LinearLayout col=pageColumn();col.addView(topBar("More"),wrap());col.addView(text("Account, preferences and system options.",10,MUTED,false),marginBottom(7));
-        LinearLayout profile=cardColumn();profile.setGravity(Gravity.CENTER_HORIZONTAL);profile.setPadding(dp(16),dp(14),dp(16),dp(14));profile.addView(new IconView(this,"profileLarge"),new LinearLayout.LayoutParams(dp(72),dp(72)));profile.addView(text("Fahad Hussain",18,INK,true),wrap());profile.addView(text("@fahadsoomro123",9,MUTED,false),wrap());TextView tag=text("Pro User",8,PURPLE,true);tag.setPadding(dp(8),dp(5),dp(8),dp(5));tag.setBackground(roundDrawable(Color.rgb(244,239,255),10,Color.rgb(221,207,251)));profile.addView(tag,marginTop(6));col.addView(profile,marginBottom(8));
-        LinearLayout menu=cardColumn();menu.addView(actionListRow("Profile","Account and mission stats","profile",v->showProfile()),rowHeight());menu.addView(actionListRow("Settings","Theme, AI and notifications","settings",v->showSettings()),rowHeight());menu.addView(actionListRow("Voice Command","Speak a mission","voice",v->showVoice()),rowHeight());menu.addView(actionListRow("Completed","Recent completed missions","check",v->showCompleted()),rowHeight());col.addView(menu);pageHost.addView(col,full());
+    private void showMore() {
+        clearPage();
+        LinearLayout col = pageColumn();
+        col.addView(topBar("More"), wrap());
+        col.addView(
+                text(
+                        "Secondary tools and account controls.",
+                        10,
+                        VeytrixDesignTokens.TEXT_SECONDARY,
+                        false
+                ),
+                marginBottom(8)
+        );
+
+        LinearLayout menu = cardColumn();
+        menu.addView(
+                actionListRow(
+                        "Profile",
+                        "Connection and target repository",
+                        "profile",
+                        v -> showProfile()
+                ),
+                new LinearLayout.LayoutParams(-1, dp(52))
+        );
+        menu.addView(
+                actionListRow(
+                        "Control",
+                        "Engine and verification settings",
+                        "control",
+                        v -> showControl()
+                ),
+                new LinearLayout.LayoutParams(-1, dp(52))
+        );
+        menu.addView(
+                actionListRow(
+                        "Voice Command",
+                        "Native voice interaction surface",
+                        "voice",
+                        v -> showVoice()
+                ),
+                new LinearLayout.LayoutParams(-1, dp(52))
+        );
+        menu.addView(
+                actionListRow(
+                        "Completed",
+                        "Real successful workflow runs",
+                        "check",
+                        v -> showCompleted()
+                ),
+                new LinearLayout.LayoutParams(-1, dp(52))
+        );
+
+        col.addView(menu);
+        pageHost.addView(col, full());
     }
 
     private View actionListRow(String title,String sub,String icon,View.OnClickListener action){LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(4),dp(10),dp(4));row.addView(new IconView(this,icon),new LinearLayout.LayoutParams(dp(30),dp(30)));LinearLayout cp=new LinearLayout(this);cp.setOrientation(LinearLayout.VERTICAL);cp.setPadding(dp(9),0,dp(8),0);cp.addView(text(title,9,INK,true));cp.addView(text(sub,7,MUTED,false));row.addView(cp,new LinearLayout.LayoutParams(0,-2,1));row.addView(text("›",15,MUTED,true),new LinearLayout.LayoutParams(dp(18),-1));row.setOnClickListener(action);return row;}
 
     private void showProfile(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Profile"),wrap());LinearLayout card=cardColumn();card.setGravity(Gravity.CENTER_HORIZONTAL);card.setPadding(dp(16),dp(16),dp(16),dp(16));card.addView(new IconView(this,"profileLarge"),new LinearLayout.LayoutParams(dp(80),dp(80)));card.addView(text("Fahad Hussain",19,INK,true),marginTop(8));card.addView(text("@fahadsoomro123",9,MUTED,false),wrap());col.addView(card,marginBottom(9));LinearLayout stats=cardRow();stats.addView(stat("128","Missions"),weightChild());stats.addView(stat("24","Projects"),weightChild());stats.addView(stat("98%","Success"),weightChild());stats.addView(stat("2.4x","Faster"),weightChild());col.addView(stats,marginBottom(9));LinearLayout account=cardColumn();account.addView(actionListRow("Account Information","Profile and account details","profile",v->toast("Account information opened")),rowHeight());account.addView(actionListRow("Mission History","View previous missions","activity",v->navigate(1)),rowHeight());account.addView(actionListRow("Usage Statistics","Workspace activity","results",v->navigate(2)),rowHeight());col.addView(account);pageHost.addView(col,full());}
 
-    private void showSettings(){clearPage();LinearLayout col=pageColumn();col.addView(topBar("Settings"),wrap());col.addView(text("Configure your VEYTRIX experience.",10,MUTED,false),marginBottom(8));LinearLayout card=cardColumn();card.addView(actionListRow("General","App behavior and language","settings",v->toast("General settings opened")),rowHeight());card.addView(actionListRow("Appearance","Theme, colors and display","appearance",v->toast("Appearance settings opened")),rowHeight());card.addView(actionListRow("AI & Mission","Model settings and execution","spark",v->showControl()),rowHeight());card.addView(liveRow("Notifications","Updates and alerts","notifications",notifications,"bell"),rowHeight());card.addView(actionListRow("Privacy","Data and security","privacy",v->toast("Privacy settings opened")),rowHeight());card.addView(actionListRow("About","VEYTRIX version 1.0.1","info",v->toast("VEYTRIX Autopilot")),rowHeight());card.addView(actionListRow("Support","Get help and contact us","support",v->toast("Support is ready for connection")),rowHeight());col.addView(card);pageHost.addView(col,full());}
+    private void showSettings() {
+        showControl();
+    }
 
     private void showVoice(){clearPage();LinearLayout col=pageColumn();col.setGravity(Gravity.CENTER_HORIZONTAL);col.addView(topBar("Voice Command"),wrap());col.addView(text("Create and control a mission with your voice.",10,MUTED,false),marginBottom(10));VoiceView voice=new VoiceView(this);voice.setOnClickListener(v->{voiceListening=!voiceListening;voice.setListening(voiceListening);toast(voiceListening?"Listening…":"Voice input stopped");});col.addView(voice,new LinearLayout.LayoutParams(dp(220),dp(220)));col.addView(text(voiceListening?"Listening…":"Tap to speak",21,INK,true),marginTop(8));col.addView(text("Give a voice command to create your mission.",9,MUTED,false),wrap());pageHost.addView(col,full());}
 
