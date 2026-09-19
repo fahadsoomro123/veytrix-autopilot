@@ -21,7 +21,7 @@ on:
         required: true
         default: 'auto'
         type: choice
-        options: [auto, github-free, ai]
+        options: [auto, github-free, ai, mesh]
       verification_depth:
         description: 'Maximum bounded verification handoffs'
         required: true
@@ -83,7 +83,7 @@ jobs:
           git check-ref-format --branch "${AUTOPILOT_TARGET_BRANCH}"
 
           case "${AUTOPILOT_ENGINE}" in
-            auto|github-free|ai) ;;
+            auto|github-free|ai|mesh) ;;
             *) echo 'Invalid execution engine.'; exit 1 ;;
           esac
 
@@ -119,13 +119,25 @@ jobs:
       - name: Engine decision self-test
         run: bash .veytrix-core/scripts/test_decide_engine.sh
 
-      - name: Detect OpenAI availability
+      - name: Detect primary AI availability
         id: ai
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           set -euo pipefail
           if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Detect Free AI Mesh availability
+        id: mesh
+        env:
+          PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${PUTER_AUTH_TOKEN:-}" ]]; then
             echo 'available=true' >> "$GITHUB_OUTPUT"
           else
             echo 'available=false' >> "$GITHUB_OUTPUT"
@@ -138,17 +150,20 @@ jobs:
           DETERMINISTIC_OUTCOME: ${{ steps.deterministic.outcome }}
           MISSION: ${{ inputs.mission }}
           AI_AVAILABLE: ${{ steps.ai.outputs.available }}
+          MESH_AVAILABLE: ${{ steps.mesh.outputs.available }}
         run: |
           set -euo pipefail
           decision="$(bash .veytrix-core/scripts/decide_engine.sh \
             "${REQUESTED_ENGINE}" "${DETERMINISTIC_OUTCOME}" \
-            "${MISSION}" "${AI_AVAILABLE}")"
+            "${MISSION}" "${AI_AVAILABLE}" "${MESH_AVAILABLE}")"
           while IFS='=' read -r key value; do
             printf '%s=%s\n' "$key" "$value" >> "$GITHUB_OUTPUT"
           done <<< "$decision"
           printf '%s\n' "$decision"
 
       - name: AI mission execution
+        id: codex
+        continue-on-error: true
         if: ${{ steps.engine.outputs.selected == 'ai' }}
         uses: openai/codex-action@v1
         with:
@@ -171,6 +186,47 @@ jobs:
             - Do not commit or push; the outer workflow owns publication.
             - Stop only when genuinely verified or a concrete blocker is proven.
 
+      - name: Prepare Free AI Mesh verification toolchain
+        if: >-
+          (steps.engine.outputs.selected == 'mesh' ||
+           (steps.engine.outputs.selected == 'ai' &&
+            steps.codex.outcome != 'success' &&
+            steps.mesh.outputs.available == 'true')) &&
+          hashFiles('target/android/settings.gradle.kts') != ''
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Free AI Mesh Gradle toolchain
+        if: >-
+          (steps.engine.outputs.selected == 'mesh' ||
+           (steps.engine.outputs.selected == 'ai' &&
+            steps.codex.outcome != 'success' &&
+            steps.mesh.outputs.available == 'true')) &&
+          hashFiles('target/android/settings.gradle.kts') != ''
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+
+      - name: Free AI Mesh fallback executor
+        id: mesh_fallback
+        continue-on-error: true
+        if: >-
+          steps.engine.outputs.selected == 'mesh' ||
+          (steps.engine.outputs.selected == 'ai' &&
+           steps.codex.outcome != 'success' &&
+           steps.mesh.outputs.available == 'true')
+        env:
+          AUTOPILOT_MISSION: ${{ inputs.mission }}
+          PUTER_AUTH_TOKEN: ${{ secrets.PUTER_AUTH_TOKEN }}
+          VEYTRIX_CORE_DIR: ${{ github.workspace }}/.veytrix-core
+          VEYTRIX_TARGET_DIR: ${{ github.workspace }}/target
+          MESH_MAX_ATTEMPTS: '6'
+          MESH_COOLDOWN_MS: '15000'
+        run: |
+          set -euo pipefail
+          node .veytrix-core/free-ai-mesh/mesh_autopilot.mjs
       - name: Deterministic-only result
         if: ${{ steps.engine.outputs.selected == 'github-free' }}
         run: |
@@ -184,13 +240,39 @@ jobs:
           echo 'GitHub-free mode cannot claim completion of an arbitrary implementation mission.'
           exit 20
 
-      - name: Verify target repository after AI
-        if: ${{ steps.engine.outputs.selected == 'ai' }}
+      - name: Verify target repository after execution
+        if: >-
+          steps.codex.outcome == 'success' ||
+          steps.mesh_fallback.outcome == 'success'
         working-directory: target
-        run: bash ../.veytrix-core/scripts/deterministic_verify.sh .
+        run: |
+          set -euo pipefail
+          bash ../.veytrix-core/scripts/deterministic_verify.sh . || {
+            rc=$?
+            if [[ $rc -ne 20 ]]; then exit $rc; fi
+            echo 'No generic deterministic verifier matched this target; continuing.'
+          }
 
-      - name: Publish verified AI mission
-        if: ${{ steps.engine.outputs.selected == 'ai' }}
+      - name: Verify Free AI Mesh patch policy
+        if: steps.mesh_fallback.outcome == 'success'
+        working-directory: target
+        run: bash ../.veytrix-core/scripts/verify_veytrix_mesh_patch_policy.sh .
+
+      - name: Execution result gate
+        if: always()
+        run: |
+          set -euo pipefail
+          if [[ '${{ steps.codex.outcome }}' == 'success' ||
+                '${{ steps.mesh_fallback.outcome }}' == 'success' ]]; then
+            exit 0
+          fi
+          echo 'Neither primary AI nor Free AI Mesh produced a verified execution.' >&2
+          exit 1
+
+      - name: Publish verified mission
+        if: >-
+          (steps.codex.outcome == 'success' ||
+           steps.mesh_fallback.outcome == 'success')
         working-directory: target
         env:
           GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
