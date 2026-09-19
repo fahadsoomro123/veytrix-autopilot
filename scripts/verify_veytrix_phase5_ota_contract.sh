@@ -10,26 +10,43 @@ files=(
   "android/autopilot/src/main/java/com/veytrix/autopilot/VeytrixUpdateView.java"
 )
 
-for file in "${files[@]}"; do test -f "$ROOT/$file"; done
+for file in "${files[@]}"; do
+  test -f "$ROOT/$file"
+done
 
 manifest="$ROOT/android/autopilot/src/main/AndroidManifest.xml"
 main="$ROOT/android/autopilot/src/main/java/com/veytrix/autopilot/MainActivity.java"
+publish="$ROOT/.github/workflows/veytrix-ota-publish.yml"
 
-grep -Fq 'REQUEST_INSTALL_PACKAGES' "$manifest"
-grep -Fq 'VeytrixInstallResultReceiver' "$manifest"
-grep -Fq 'PackageInstaller' "${files[1]}"
-grep -Fq 'getApkContentsSigners' "${files[1]}"
-grep -Fq 'getSigningCertificateHistory' "${files[1]}"
-grep -Fq 'SHA-256 verification failed' "${files[1]}"
-grep -Fq 'canRequestPackageInstalls' "${files[3]}"
-grep -Fq 'ACTION_MANAGE_UNKNOWN_APP_SOURCES' "${files[3]}"
-grep -Fq 'browser_download_url' "${files[0]}"
-grep -Fq 'digest' "${files[0]}"
-grep -Fq 'release-assets.githubusercontent.com' "${files[0]}"
-grep -Fq 'setInstanceFollowRedirects(false)' "${files[0]}"
-grep -Fq 'https://api.github.com/repos/fahadsoomro123/veytrix-autopilot/releases/latest' "${files[0]}"
-grep -Fq 'showUpdates' "$main"
-grep -Fq 'Updates' "$main"
+require_text() {
+  local pattern="$1"
+  local file="$2"
+  if ! grep -Fq "$pattern" "$file"; then
+    echo "OTA contract missing: [$pattern] in $file" >&2
+    exit 1
+  fi
+}
+
+require_text 'REQUEST_INSTALL_PACKAGES' "$manifest"
+require_text 'VeytrixInstallResultReceiver' "$manifest"
+require_text 'PackageInstaller' "${files[1]}"
+require_text 'getApkContentsSigners' "${files[1]}"
+require_text 'getSigningCertificateHistory' "${files[1]}"
+require_text 'SHA-256 verification failed' "${files[1]}"
+require_text 'canRequestPackageInstalls' "${files[3]}"
+require_text 'ACTION_MANAGE_UNKNOWN_APP_SOURCES' "${files[3]}"
+require_text 'browser_download_url' "${files[0]}"
+require_text 'digest' "${files[0]}"
+require_text 'release-assets.githubusercontent.com' "${files[0]}"
+require_text 'setInstanceFollowRedirects(false)' "${files[0]}"
+require_text 'https://api.github.com/repos/fahadsoomro123/veytrix-autopilot/releases/latest' "${files[0]}"
+require_text 'showUpdates' "$main"
+require_text 'Updates' "$main"
+require_text 'permissions:' "$publish"
+require_text 'contents: write' "$publish"
+require_text 'gh release' "$publish"
+require_text 'update.json' "$publish"
+require_text 'VEYTRIX_KEYSTORE_BASE64' "$publish"
 
 if grep -REn 'ScrollView|HorizontalScrollView' "${files[@]}"; then
   echo 'Phase 5 update surface must not depend on page scrolling.' >&2
@@ -46,4 +63,5 @@ if grep -REn 'Color\.rgb\((55, 132, 255|8, 23, 42|12, 32, 55)|Color\.BLACK|Color
   exit 1
 fi
 
+bash -n "$ROOT/scripts/verify_veytrix_phase5_ota_contract.sh"
 echo 'VEYTRIX Phase 5 OTA contract: PASS'
