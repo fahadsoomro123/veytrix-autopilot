@@ -241,38 +241,59 @@ jobs:
           exit 20
 
       - name: Verify target repository after execution
+        id: final_verify
+        continue-on-error: true
         if: >-
           steps.codex.outcome == 'success' ||
           steps.mesh_fallback.outcome == 'success'
         working-directory: target
+        shell: bash
         run: |
-          set -euo pipefail
-          bash ../.veytrix-core/scripts/deterministic_verify.sh . || {
-            rc=$?
-            if [[ $rc -ne 20 ]]; then exit $rc; fi
-            echo 'No generic deterministic verifier matched this target; continuing.'
-          }
-
-      - name: Verify Free AI Mesh patch policy
-        if: steps.mesh_fallback.outcome == 'success'
-        working-directory: target
-        run: bash ../.veytrix-core/scripts/verify_veytrix_mesh_patch_policy.sh .
+          set +e
+          set -u
+          bash ../.veytrix-core/scripts/deterministic_verify.sh .
+          verify_rc=$?
+          if [[ $verify_rc -ne 0 && $verify_rc -ne 20 ]]; then
+            echo 'deterministic verification failed' >&2
+            exit $verify_rc
+          fi
+          git diff --check
+          diff_rc=$?
+          if [[ $diff_rc -ne 0 ]]; then
+            echo 'git diff --check failed' >&2
+            exit $diff_rc
+          fi
+          if [[ -d android/autopilot ]]; then
+            bash ../.veytrix-core/scripts/verify_veytrix_android_contract.sh .
+            android_contract_rc=$?
+            if [[ $android_contract_rc -ne 0 ]]; then exit $android_contract_rc; fi
+            gradle --no-daemon --project-dir android :autopilot:check
+            gradle_check_rc=$?
+            if [[ $gradle_check_rc -ne 0 ]]; then exit $gradle_check_rc; fi
+            gradle --no-daemon --project-dir android :autopilot:assembleDebug
+            apk_rc=$?
+            if [[ $apk_rc -ne 0 ]]; then exit $apk_rc; fi
+          fi
+          if [[ '${{ steps.mesh_fallback.outcome }}' == 'success' ]]; then
+            bash ../.veytrix-core/scripts/verify_veytrix_mesh_patch_policy.sh .
+            mesh_policy_rc=$?
+            if [[ $mesh_policy_rc -ne 0 ]]; then exit $mesh_policy_rc; fi
+          fi
+          echo 'verified=true' >> "$GITHUB_OUTPUT"
 
       - name: Execution result gate
         if: always()
+        shell: bash
         run: |
           set -euo pipefail
-          if [[ '${{ steps.codex.outcome }}' == 'success' ||
-                '${{ steps.mesh_fallback.outcome }}' == 'success' ]]; then
+          if [[ '${{ steps.final_verify.outputs.verified }}' == 'true' ]]; then
+            echo 'Verified execution exists.'
             exit 0
           fi
-          echo 'Neither primary AI nor Free AI Mesh produced a verified execution.' >&2
+          echo 'No verified execution exists; refusing publication.' >&2
           exit 1
-
       - name: Publish verified mission
-        if: >-
-          (steps.codex.outcome == 'success' ||
-           steps.mesh_fallback.outcome == 'success')
+        if: steps.final_verify.outputs.verified == 'true'
         working-directory: target
         env:
           GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
