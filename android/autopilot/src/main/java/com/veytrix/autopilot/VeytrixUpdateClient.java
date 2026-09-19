@@ -114,6 +114,9 @@ public final class VeytrixUpdateClient {
                 if (!isAllowedDownloadHost(url.getHost())) {
                     throw new SecurityException("Update download redirected to an untrusted host");
                 }
+                if (redirects > 0 && "github.com".equalsIgnoreCase(url.getHost())) {
+                    throw new SecurityException("Release redirects must terminate on a GitHub asset host");
+                }
                 connection = (HttpURLConnection) url.openConnection();
                 connection.setRequestMethod("GET");
                 connection.setConnectTimeout(15000);
@@ -187,8 +190,9 @@ public final class VeytrixUpdateClient {
         connection.setRequestProperty("User-Agent", "Veytrix-Android-OTA");
         try {
             int code = connection.getResponseCode();
-            InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream();
-            return new HttpResult(code, read(stream));
+            try (InputStream stream = code >= 400 ? connection.getErrorStream() : connection.getInputStream()) {
+                return new HttpResult(code, read(stream));
+            }
         } finally {
             connection.disconnect();
         }
