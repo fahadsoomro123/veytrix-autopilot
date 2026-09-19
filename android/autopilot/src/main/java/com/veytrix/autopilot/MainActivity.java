@@ -15,6 +15,7 @@ import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import android.view.Window;
@@ -54,6 +55,8 @@ public final class MainActivity extends Activity {
     private FrameLayout drawerShade;
     private LinearLayout drawer;
     private VeytrixAutopilotClient autopilotClient;
+    private int systemBarTopInset;
+    private int systemBarBottomInset;
     private boolean deepMode = true;
     private boolean voiceListening = false;
 
@@ -237,12 +240,24 @@ public final class MainActivity extends Activity {
     private void closeDrawer(){drawerShade.setVisibility(View.GONE);drawer.setVisibility(View.GONE);}
 
     private void navigate(int page){currentPage=page;if(page==0)showHome();else if(page==1)showActivity();else if(page==2)showResults();else if(page==3)showControl();else showMore();}
-    private void clearPage(){closeDrawer();pageHost.removeAllViews();pageHost.setPadding(dp(14),dp(6),dp(14),dp(76));}
+    private void clearPage(){
+        closeDrawer();
+        pageHost.removeAllViews();
+        pageHost.setPadding(
+                dp(14),
+                systemBarTopInset + dp(6),
+                dp(14),
+                systemBarBottomInset + dp(82)
+        );
+    }
 
     private void showHome() {
         clearPage();
         pageHost.setPadding(
-                dp(14), dp(6), dp(14), dp(82)
+                dp(14),
+                systemBarTopInset + dp(6),
+                dp(14),
+                systemBarBottomInset + dp(82)
         );
         pageHost.addView(
                 new VeytrixHomeView(
