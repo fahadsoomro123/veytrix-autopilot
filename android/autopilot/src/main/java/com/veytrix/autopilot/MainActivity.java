@@ -117,9 +117,7 @@ public final class MainActivity extends Activity {
         setContentView(root);
 
         ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
-            WindowInsetsCompat.Insets bars = insets.getInsets(
-                    WindowInsetsCompat.Type.systemBars()
-            );
+            Insets bars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             pageHost.setPadding(
                     dp(14),
                     bars.top + dp(6),
