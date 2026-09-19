@@ -71,4 +71,4 @@ esac
 printf 'selected=%s\n' "$selected"
 printf 'reason=%s\n' "$reason"
 printf 'deterministic_outcome=%s\n' "$deterministic_outcome"
-printf 'ai_available=%s\n' "$ai_available"
+printf 'ai_available=%s\n' "$ai_available"\nprintf 'mesh_available=%s\n' "$mesh_available"
