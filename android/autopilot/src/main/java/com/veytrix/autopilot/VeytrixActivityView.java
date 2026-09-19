@@ -18,15 +18,18 @@ import java.util.List;
 public final class VeytrixActivityView extends LinearLayout {
     public interface Host {
         void openConnection();
+        void openRunDetails(VeytrixAutopilotClient.RunInfo run);
     }
 
     private final VeytrixAutopilotClient client;
+    private final Host host;
     private final TextView status;
     private final LinearLayout runRail;
 
     public VeytrixActivityView(Context context, VeytrixAutopilotClient client, Host host) {
         super(context);
         this.client = client;
+        this.host = host;
 
         setOrientation(VERTICAL);
         setPadding(dp(14), dp(8), dp(14), dp(8));
@@ -200,6 +203,7 @@ public final class VeytrixActivityView extends LinearLayout {
                 LayoutParams.MATCH_PARENT, dp(62)
         );
         rowLp.bottomMargin = dp(7);
+        row.setOnClickListener(v -> host.openRunDetails(run));
         runRail.addView(row, rowLp);
     }
 

@@ -296,6 +296,13 @@ public final class VeytrixHomeView extends LinearLayout {
         executeButton.setAlpha(connected ? 1f : 0.55f);
     }
 
+    public void setMissionText(String value) {
+        if (missionInput != null) {
+            missionInput.setText(value == null ? "" : value);
+            missionInput.setSelection(missionInput.length());
+        }
+    }
+
     private void executeMission() {
         final String mission = missionInput.getText().toString().trim();
         try {
