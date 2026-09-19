@@ -44,7 +44,7 @@ if grep -Eqi '(-----BEGIN [A-Z ]*PRIVATE KEY-----|ghp_[A-Za-z0-9_]{20,}|github_p
   exit 1
 fi
 
-if grep -Eqi '(usesCleartextTraffic[[:space:]]*=[[:space:]]*["'"']true|setHostnameVerifier|ALLOW_ALL_HOSTNAME_VERIFIER|TrustAll|trustAll|WebView|http://)' <<< "$combined"; then
+if grep -Eqi 'usesCleartextTraffic[[:space:]]*=[[:space:]]*true|setHostnameVerifier|ALLOW_ALL_HOSTNAME_VERIFIER|TrustAll|trustAll|WebView|http://' <<< "$combined"; then
   echo 'Mesh patch policy detected a transport/security weakening signature.' >&2
   exit 1
 fi
