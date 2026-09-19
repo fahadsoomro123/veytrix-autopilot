@@ -17,6 +17,8 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.core.content.ContextCompat;
+
 import java.io.File;
 
 /** Native OTA discovery, digest verification and user-approved package installation. */
@@ -224,11 +226,12 @@ public final class VeytrixUpdateView extends LinearLayout {
         Activity activity = (Activity) getContext();
         IntentFilter filter = new IntentFilter(
                 VeytrixInstallResultReceiver.ACTION_INSTALL_RESULT);
-        if (Build.VERSION.SDK_INT >= 33) {
-            activity.registerReceiver(installReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
-        } else {
-            activity.registerReceiver(installReceiver, filter);
-        }
+        ContextCompat.registerReceiver(
+                activity,
+                installReceiver,
+                filter,
+                ContextCompat.RECEIVER_NOT_EXPORTED
+        );
     }
 
     @Override protected void onDetachedFromWindow() {
