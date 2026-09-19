@@ -179,8 +179,8 @@ jobs:
             Android identity proof when applicable:
             - APK: android/autopilot/build/outputs/apk/debug/autopilot-debug.apk
             - package: com.veytrix.autopilot
-            - versionCode: 10000
-            - versionName: 1.0.0
+            - versionCode: 10001
+            - versionName: 1.0.1
             - launcher: com.veytrix.autopilot.MainActivity
             - legacy assets/veytrix_preview.html must not be packaged
 
@@ -223,7 +223,7 @@ jobs:
               AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
               test -x "$AAPT"
               "$AAPT" dump badging "$apk" > /tmp/veytrix-repair-pass1-badging.txt
-              grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-repair-pass1-badging.txt
+              grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-repair-pass1-badging.txt
               grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-repair-pass1-badging.txt
               if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
                 echo 'Legacy WebView preview asset is still packaged.' >&2
@@ -288,7 +288,7 @@ jobs:
               AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
               test -x "$AAPT"
               "$AAPT" dump badging "$apk" > /tmp/veytrix-repair-pass2-badging.txt
-              grep -F "package: name='com.veytrix.autopilot' versionCode='10000' versionName='1.0.0'" /tmp/veytrix-repair-pass2-badging.txt
+              grep -F "package: name='com.veytrix.autopilot' versionCode='10001' versionName='1.0.1'" /tmp/veytrix-repair-pass2-badging.txt
               grep -F "launchable-activity: name='com.veytrix.autopilot.MainActivity'" /tmp/veytrix-repair-pass2-badging.txt
               if unzip -l "$apk" | grep -F 'assets/veytrix_preview.html'; then
                 echo 'Legacy WebView preview asset is still packaged.' >&2
