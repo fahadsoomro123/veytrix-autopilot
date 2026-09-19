@@ -119,28 +119,37 @@ jobs:
       - name: Engine decision self-test
         run: bash .veytrix-core/scripts/test_decide_engine.sh
 
+      - name: Detect OpenAI availability
+        id: ai
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -n "${OPENAI_API_KEY:-}" ]]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Determine engine
         id: engine
         env:
           REQUESTED_ENGINE: ${{ inputs.engine }}
-          DETERMINISTIC_OUTCOME: \${{ steps.deterministic.outcome }}
+          DETERMINISTIC_OUTCOME: ${{ steps.deterministic.outcome }}
           MISSION: ${{ inputs.mission }}
+          AI_AVAILABLE: ${{ steps.ai.outputs.available }}
         run: |
           set -euo pipefail
-          ai_available=false
-          if [[ -n "\${{ secrets.OPENAI_API_KEY }}" ]]; then
-            ai_available=true
-          fi
-          decision="\$(bash .veytrix-core/scripts/decide_engine.sh \
-            "\${REQUESTED_ENGINE}" "\${DETERMINISTIC_OUTCOME}" \
-            "\${MISSION}" "\${ai_available}")"
+          decision="$(bash .veytrix-core/scripts/decide_engine.sh \
+            "${REQUESTED_ENGINE}" "${DETERMINISTIC_OUTCOME}" \
+            "${MISSION}" "${AI_AVAILABLE}")"
           while IFS='=' read -r key value; do
-            printf '%s=%s\n' "\$key" "\$value" >> "\$GITHUB_OUTPUT"
-          done <<< "\$decision"
-          printf '%s\n' "\$decision"
+            printf '%s=%s\n' "$key" "$value" >> "$GITHUB_OUTPUT"
+          done <<< "$decision"
+          printf '%s\n' "$decision"
 
       - name: AI mission execution
-        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        if: ${{ steps.engine.outputs.selected == 'ai' }}
         uses: openai/codex-action@v1
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
@@ -163,11 +172,11 @@ jobs:
             - Stop only when genuinely verified or a concrete blocker is proven.
 
       - name: Deterministic-only result
-        if: \${{ steps.engine.outputs.selected == 'github-free' }}
+        if: ${{ steps.engine.outputs.selected == 'github-free' }}
         run: |
           set -euo pipefail
-          reason='\${{ steps.engine.outputs.reason }}'
-          if [[ "\${{ steps.deterministic.outcome }}" == 'success' ]] &&
+          reason='${{ steps.engine.outputs.reason }}'
+          if [[ "${{ steps.deterministic.outcome }}" == 'success' ]] &&
              [[ "\$reason" == deterministic-capability-sufficient* ]]; then
             echo 'Deterministic capability was sufficient for this verification-only mission.'
             exit 0
@@ -176,12 +185,12 @@ jobs:
           exit 20
 
       - name: Verify target repository after AI
-        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        if: ${{ steps.engine.outputs.selected == 'ai' }}
         working-directory: target
         run: bash ../.veytrix-core/scripts/deterministic_verify.sh .
 
       - name: Publish verified AI mission
-        if: \${{ steps.engine.outputs.selected == 'ai' }}
+        if: ${{ steps.engine.outputs.selected == 'ai' }}
         working-directory: target
         env:
           GH_TOKEN: ${{ secrets.VEYTRIX_GITHUB_TOKEN }}
