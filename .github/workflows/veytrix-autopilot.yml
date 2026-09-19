@@ -286,6 +286,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [[ '${{ steps.engine.outputs.selected }}' == 'github-free' &&
+                '${{ steps.deterministic.outcome }}' == 'success' &&
+                '${{ steps.engine.outputs.reason }}' == deterministic-capability-sufficient* ]]; then
+            echo 'Verified GitHub-free deterministic execution exists.'
+            exit 0
+          fi
           if [[ '${{ steps.final_verify.outputs.verified }}' == 'true' ]]; then
             echo 'Verified execution exists.'
             exit 0
