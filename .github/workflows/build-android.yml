@@ -13,6 +13,8 @@ on:
       - 'scripts/verify_veytrix_mesh_contract.sh'
       - 'free-ai-mesh/**'
       - 'scripts/verify_veytrix_phase3_secondary_contract.sh'
+      - 'scripts/verify_veytrix_mesh_contract.sh'
+      - 'free-ai-mesh/**'
       - '.github/workflows/build-android.yml'
       - '.github/workflows/veytrix-autopilot.yml'
   pull_request:
