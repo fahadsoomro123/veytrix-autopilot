@@ -171,13 +171,16 @@ jobs:
             echo "Release tag $RELEASE_TAG already exists; refusing to replace published OTA assets." >&2
             exit 1
           fi
-          gh release create "$RELEASE_TAG" \
-            autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk#VEYTRIX Android APK \
-            autopilot/build/outputs/apk/release/update.json#OTA metadata \
+          args=("$RELEASE_TAG" \
+            "autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk#VEYTRIX Android APK" \
+            "autopilot/build/outputs/apk/release/update.json#OTA metadata" \
             --title "$RELEASE_NAME" \
             --notes-file /tmp/veytrix-release-notes.txt \
-            --target "$BUILD_COMMIT" \
-            $( [[ '${{ inputs.prerelease }}' == 'true' ]] && printf '%s' '--prerelease' )
+            --target "$BUILD_COMMIT")
+          if [[ '${{ inputs.prerelease }}' == 'true' ]]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}"
       - name: Record OTA release result
         shell: bash
         run: |
