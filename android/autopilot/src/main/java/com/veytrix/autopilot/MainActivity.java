@@ -201,7 +201,7 @@ public final class MainActivity extends Activity {
         drawerItem("Results", "results", 2); drawerItem("Control", "control", 3);
         drawerItem("Profile", "profile", 4); drawerItem("Voice", "voice", 5); drawerItem("Settings", "settings", 6);
         Space spacer = new Space(this); drawer.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1));
-        drawer.addView(text("SUPPORT", 9, VeytrixDesignTokens.TEXT_SECONDARY, true), new LinearLayout.LayoutParams(-1, dp(26)));
+        drawer.addView(text("SYSTEM", 9, VeytrixDesignTokens.TEXT_SECONDARY, true), new LinearLayout.LayoutParams(-1, dp(26)));        drawerItem("Updates", "download", 9);        drawer.addView(text("SUPPORT", 9, VeytrixDesignTokens.TEXT_SECONDARY, true), new LinearLayout.LayoutParams(-1, dp(26)));
         drawerItem("Help & Support", "support", 7); drawerItem("Completed", "check", 8);
         LinearLayout account = new LinearLayout(this); account.setGravity(Gravity.CENTER_VERTICAL);
         account.setPadding(dp(10), dp(8), dp(10), dp(8)); account.setBackground(roundDrawable(VeytrixDesignTokens.PEARL, 14, VeytrixDesignTokens.SILVER));
@@ -216,7 +216,7 @@ public final class MainActivity extends Activity {
         item.addView(new IconView(this, icon), new LinearLayout.LayoutParams(dp(26),dp(26)));
         TextView labelView=text(label,11,VeytrixDesignTokens.TEXT_PRIMARY,true); labelView.setPadding(dp(8),0,0,0);
         item.addView(labelView,new LinearLayout.LayoutParams(0,-1,1));
-        item.setOnClickListener(v->{closeDrawer(); switch(destination){case 0:navigate(0);break;case 1:navigate(1);break;case 2:navigate(2);break;case 3:navigate(3);break;case 4:showProfile();break;case 5:showVoice();break;case 6:showSettings();break;case 7:showSupport();break;case 8:showCompleted();break;default:break;}});
+        item.setOnClickListener(v->{closeDrawer(); switch(destination){case 0:navigate(0);break;case 1:navigate(1);break;case 2:navigate(2);break;case 3:navigate(3);break;case 4:showProfile();break;case 5:showVoice();break;case 6:showSettings();break;case 7:showSupport();break;case 8:showCompleted();break;case 9:showUpdates();break;default:break;}});
         drawer.addView(item,new LinearLayout.LayoutParams(-1,dp(44)));
     }
 
@@ -531,6 +531,18 @@ public final class MainActivity extends Activity {
                     }
                 }
         ), full());
+    }
+
+    private void showUpdates() {
+        clearPage();
+        pageHost.addView(
+                new VeytrixUpdateView(
+                        this,
+                        new VeytrixUpdateClient(this),
+                        () -> MainActivity.this.openDrawer()
+                ),
+                full()
+        );
     }
 
     private void showSupport() {
