@@ -110,7 +110,7 @@ public final class VeytrixControlView extends LinearLayout {
         );
         addView(settingRow(
                 "Verification depth",
-                "Bounded handoffs: 0–2",
+                "Bounded handoffs: 0–2; Mesh can act as fallback.",
                 depthValue,
                 "EDIT",
                 v -> chooseDepth(depthValue)
@@ -168,7 +168,7 @@ public final class VeytrixControlView extends LinearLayout {
     }
 
     private void chooseEngine(TextView value) {
-        String[] options = {"auto", "github-free", "ai"};
+        String[] options = {"auto", "github-free", "ai", "mesh"};
         new android.app.AlertDialog.Builder(getContext())
                 .setTitle("Execution engine")
                 .setSingleChoiceItems(
