@@ -53,7 +53,7 @@ jobs:
       - name: Checkout Veytrix core
         uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.sha }}
           path: .veytrix-core
           fetch-depth: 1
           persist-credentials: false
