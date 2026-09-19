@@ -1,0 +1,184 @@
+name: VEYTRIX Publish OTA Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: 'Git ref/commit to build and publish'
+        required: true
+        default: 'main'
+        type: string
+      tag:
+        description: 'Release tag, for example v1.0.1'
+        required: true
+        default: 'v1.0.1'
+        type: string
+      release_name:
+        description: 'Published GitHub release title'
+        required: true
+        default: 'VEYTRIX Android Release'
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: true
+        default: 'Signed VEYTRIX Android release with OTA metadata.'
+        type: string
+      prerelease:
+        description: 'Publish as a prerelease'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    name: Build and publish signed OTA release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout requested release ref
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.target_ref }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify native Android and OTA contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_veytrix_android_contract.sh .
+          if [[ -f scripts/verify_veytrix_phase5_ota_contract.sh ]]; then
+            bash scripts/verify_veytrix_phase5_ota_contract.sh .
+          fi
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+
+      - name: Verify release signing inputs
+        env:
+          VEYTRIX_KEYSTORE_BASE64: ${{ secrets.VEYTRIX_KEYSTORE_BASE64 }}
+          VEYTRIX_KEYSTORE_PASSWORD: ${{ secrets.VEYTRIX_KEYSTORE_PASSWORD }}
+          VEYTRIX_KEY_ALIAS: ${{ secrets.VEYTRIX_KEY_ALIAS }}
+          VEYTRIX_KEY_PASSWORD: ${{ secrets.VEYTRIX_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VEYTRIX_KEYSTORE_BASE64:-}" ]] || missing+=(VEYTRIX_KEYSTORE_BASE64)
+          [[ -n "${VEYTRIX_KEYSTORE_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEYSTORE_PASSWORD)
+          [[ -n "${VEYTRIX_KEY_ALIAS:-}" ]] || missing+=(VEYTRIX_KEY_ALIAS)
+          [[ -n "${VEYTRIX_KEY_PASSWORD:-}" ]] || missing+=(VEYTRIX_KEY_PASSWORD)
+          if ((${#missing[@]})); then
+            printf 'Missing release signing secrets: %s\n' "${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Run Gradle checks
+        working-directory: android
+        shell: bash
+        run: gradle --no-daemon :autopilot:check
+
+      - name: Build signed release APK
+        working-directory: android
+        env:
+          VEYTRIX_KEYSTORE_BASE64: ${{ secrets.VEYTRIX_KEYSTORE_BASE64 }}
+          VEYTRIX_KEYSTORE_PASSWORD: ${{ secrets.VEYTRIX_KEYSTORE_PASSWORD }}
+          VEYTRIX_KEY_ALIAS: ${{ secrets.VEYTRIX_KEY_ALIAS }}
+          VEYTRIX_KEY_PASSWORD: ${{ secrets.VEYTRIX_KEY_PASSWORD }}
+        shell: bash
+        run: gradle --no-daemon :autopilot:assembleRelease
+
+      - name: Verify release package and generate OTA metadata
+        id: metadata
+        working-directory: android
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+          TARGET_REF: ${{ inputs.target_ref }}
+        run: |
+          set -euo pipefail
+          apk='autopilot/build/outputs/apk/release/autopilot-release.apk'
+          test -s "$apk"
+          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          test -x "$AAPT"
+          "$AAPT" dump badging "$apk" > /tmp/veytrix-release-badging.txt
+          package_name="$(sed -n "s/.*package: name='\\([^']*\\)'.*/\\1/p" /tmp/veytrix-release-badging.txt | head -1)"
+          version_name="$(sed -n "s/.*versionName='\\([^']*\\)'.*/\\1/p" /tmp/veytrix-release-badging.txt | head -1)"
+          version_code="$(sed -n "s/.*versionCode='\\([^']*\\)'.*/\\1/p" /tmp/veytrix-release-badging.txt | head -1)"
+          test "$package_name" = 'com.veytrix.autopilot'
+          test -n "$version_name"
+          test -n "$version_code"
+          sha256="$(sha256sum "$apk" | awk '{print $1}')"
+          size="$(stat -c '%s' "$apk")"
+          mkdir -p autopilot/build/outputs/apk/release
+          cp "$apk" autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk
+          cat > autopilot/build/outputs/apk/release/update.json <<EOF
+          {
+            "packageName": "$package_name",
+            "versionName": "$version_name",
+            "versionCode": $version_code,
+            "tag": "$RELEASE_TAG",
+            "releaseName": "$RELEASE_NAME",
+            "apkAsset": "veytrix-autopilot-release.apk",
+            "sha256": "$sha256",
+            "sizeBytes": $size,
+            "targetRef": "$TARGET_REF",
+            "commit": "$(git rev-parse HEAD)"
+          }
+          EOF
+          echo "version_name=$version_name" >> "$GITHUB_OUTPUT"
+          echo "version_code=$version_code" >> "$GITHUB_OUTPUT"
+          echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_NAME: ${{ inputs.release_name }}
+          RELEASE_NOTES: ${{ inputs.release_notes }}
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$RELEASE_NOTES" > /tmp/veytrix-release-notes.txt
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" \
+              autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk \
+              autopilot/build/outputs/apk/release/update.json \
+              --clobber
+            gh release edit "$RELEASE_TAG" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt
+          else
+            args=("$RELEASE_TAG" \
+              "autopilot/build/outputs/apk/release/veytrix-autopilot-release.apk#VEYTRIX Android APK" \
+              "autopilot/build/outputs/apk/release/update.json#OTA metadata")
+            if [[ '${{ inputs.prerelease }}' == 'true' ]]; then
+              gh release create "${args[@]}" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt --target "${{ inputs.target_ref }}" --prerelease
+            else
+              gh release create "${args[@]}" --title "$RELEASE_NAME" --notes-file /tmp/veytrix-release-notes.txt --target "${{ inputs.target_ref }}"
+            fi
+          fi
+
+      - name: Record OTA release result
+        shell: bash
+        run: |
+          {
+            echo '### VEYTRIX OTA Release Published'
+            echo '- Package: com.veytrix.autopilot'
+            echo '- Version: ${{ steps.metadata.outputs.version_name }} (${{ steps.metadata.outputs.version_code }})'
+            echo '- Tag: ${{ inputs.tag }}'
+            echo '- APK SHA-256: ${{ steps.metadata.outputs.sha256 }}'
+            echo '- Release assets: APK + update.json'
+            echo '- User-approved Android PackageInstaller remains the client install path'
+          } >> "$GITHUB_STEP_SUMMARY"
