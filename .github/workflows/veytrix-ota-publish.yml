@@ -168,7 +168,11 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$RELEASE_NOTES" > /tmp/veytrix-release-notes.txt
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Release tag $RELEASE_TAG already exists; refusing to replace published OTA assets." >&2
+            echo "Release tag $RELEASE_TAG already has a GitHub release; refusing to replace published OTA assets." >&2
+            exit 1
+          fi
+          if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "Git tag $RELEASE_TAG already exists; refusing to reuse an immutable OTA tag." >&2
             exit 1
           fi
           args=("$RELEASE_TAG" \
