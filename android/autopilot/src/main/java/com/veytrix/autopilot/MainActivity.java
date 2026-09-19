@@ -36,7 +36,7 @@ import androidx.core.view.WindowInsetsControllerCompat;
  */
 public final class MainActivity extends Activity {
 
-    private static final int VeytrixDesignTokens.VeytrixDesignTokens.PURPLE = Color.rgb(8, 23, 42);
+    private static final int LEGACY_UNUSED_ACCENT = Color.TRANSPARENT;
 
     private FrameLayout root;
     private FrameLayout pageHost;
