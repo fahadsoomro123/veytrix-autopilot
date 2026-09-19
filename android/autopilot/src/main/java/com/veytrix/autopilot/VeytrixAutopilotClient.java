@@ -291,6 +291,75 @@ public final class VeytrixAutopilotClient {
         });
     }
 
+    public static final class ArtifactInfo {
+        public final long id;
+        public final String name;
+        public final long sizeBytes;
+        public final boolean expired;
+
+        ArtifactInfo(long id, String name, long sizeBytes, boolean expired) {
+            this.id = id;
+            this.name = name == null ? "" : name;
+            this.sizeBytes = sizeBytes;
+            this.expired = expired;
+        }
+    }
+
+    public void fetchArtifacts(
+            long runId,
+            int limit,
+            SimpleCallback<List<ArtifactInfo>> callback
+    ) {
+        executor.execute(() -> {
+            try {
+                if (runId <= 0) {
+                    throw new IllegalArgumentException("Invalid workflow run");
+                }
+                if (limit < 1 || limit > 20) {
+                    throw new IllegalArgumentException("Artifact limit must be 1-20");
+                }
+
+                String token = secureStore.loadToken();
+                if (token.isEmpty()) {
+                    throw new IllegalStateException("Connect GitHub first");
+                }
+
+                HttpResult result = request(
+                        "GET",
+                        "/repos/" + OWNER + "/" + REPO
+                                + "/actions/runs/" + runId
+                                + "/artifacts?per_page=" + limit,
+                        token,
+                        null
+                );
+
+                if (result.code != 200) {
+                    throw apiError("Artifact lookup failed", result.code);
+                }
+
+                JSONArray artifacts = new JSONObject(result.body)
+                        .optJSONArray("artifacts");
+                List<ArtifactInfo> output = new ArrayList<>();
+
+                if (artifacts != null) {
+                    for (int i = 0; i < artifacts.length(); i++) {
+                        JSONObject item = artifacts.getJSONObject(i);
+                        output.add(new ArtifactInfo(
+                                item.optLong("id"),
+                                item.optString("name"),
+                                item.optLong("size_in_bytes"),
+                                item.optBoolean("expired", false)
+                        ));
+                    }
+                }
+
+                main.post(() -> callback.onSuccess(output));
+            } catch (Exception e) {
+                main.post(() -> callback.onError(safeMessage(e)));
+            }
+        });
+    }
+
     public void fetchRun(long runId, SimpleCallback<RunInfo> callback) {
         executor.execute(() -> {
             try {
