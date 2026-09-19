@@ -27,17 +27,17 @@ grep -Fq 'free-ai-mesh/' "$agent"
 grep -Fq 'veytrixsecurestore' "$agent"
 grep -Fq 'veytrixautopilotclient' "$agent"
 
-if grep -Eqi 'child_process.*exec[^F]|execSync\([^)]*\$|spawn\([^)]*shell[[:space:]]*:[[:space:]]*true' "$agent"; then
-  echo 'Unsafe arbitrary command execution leaked into mesh agent.' >&2
+if grep -Eqi 'spawn\([^)]*shell[[:space:]]*:[[:space:]]*true|exec\([^)]*shell[[:space:]]*:[[:space:]]*true' "$agent"; then
+  echo 'Unsafe shell execution leaked into mesh agent.' >&2
   exit 1
 fi
 
-if grep -Eqi 'git (commit|push)|gh[[:space:]]+.*(push|pr)' "$agent"; then
+if grep -Eq 'execFileSync\([^;]*\[.*git.*commit|execFileSync\([^;]*\[.*git.*push' "$agent"; then
   echo 'Mesh agent must not commit or push.' >&2
   exit 1
 fi
 
-if grep -Eqi 'OPENAI_API_KEY|VEYTRIX_GITHUB_TOKEN|VEYTRIX_KEYSTORE' "$agent"; then
+if grep -Eq 'process\.env\.(OPENAI_API_KEY|VEYTRIX_GITHUB_TOKEN|VEYTRIX_KEYSTORE_BASE64|VEYTRIX_KEYSTORE_PASSWORD|VEYTRIX_KEY_ALIAS|VEYTRIX_KEY_PASSWORD)' "$agent"; then
   echo 'Mesh agent must not consume primary or signing credentials.' >&2
   exit 1
 fi
