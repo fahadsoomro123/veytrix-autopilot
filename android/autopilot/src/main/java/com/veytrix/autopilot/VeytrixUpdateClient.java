@@ -72,7 +72,7 @@ public final class VeytrixUpdateClient {
 
     private UpdateInfo parseRelease(JSONObject release) throws Exception {
         String tag = release.optString("tag_name", "").trim();
-        if (!tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?")) {
+        if (!isValidReleaseTag(tag)) {
             throw new SecurityException("Release tag is not semantic-versioned");
         }
         JSONArray assets = release.optJSONArray("assets");
@@ -98,15 +98,28 @@ public final class VeytrixUpdateClient {
 
         String url = apk.optString("browser_download_url", "").trim();
         String digest = apk.optString("digest", "").trim().toLowerCase();
-        if (!url.startsWith(RELEASE_DOWNLOAD_PREFIX + tag + "/")) {
+        if (!isValidReleaseDownloadUrl(url, tag)) {
             throw new SecurityException("Release APK URL does not match the published release tag");
         }
-        if (!digest.matches("sha256:[0-9a-f]{64}")) {
+        if (!isValidReleaseDigest(digest)) {
             throw new SecurityException("Release APK does not expose a valid SHA-256 digest");
         }
 
         return new UpdateInfo(tag, url, digest.substring("sha256:".length()),
                 release.optString("name", tag), release.optString("body", ""));
+    }
+
+    static boolean isValidReleaseTag(String tag) {
+        return tag != null && tag.matches("v[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?");
+    }
+
+    static boolean isValidReleaseDigest(String digest) {
+        return digest != null && digest.matches("sha256:[0-9a-f]{64}");
+    }
+
+    static boolean isValidReleaseDownloadUrl(String url, String tag) {
+        return url != null && tag != null &&
+                url.startsWith(RELEASE_DOWNLOAD_PREFIX + tag + "/");
     }
 
     private void downloadToFile(String initialUrl, File target, String expectedSha256) throws Exception {
