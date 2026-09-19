@@ -62,33 +62,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -n "\${AUTOPILOT_MISSION}"
-          test "\${#AUTOPILOT_MISSION}" -le 4000
+          test -n "${AUTOPILOT_MISSION}"
+          test "${#AUTOPILOT_MISSION}" -le 4000
 
-          if [[ ! "\${AUTOPILOT_TARGET_REPOSITORY}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
+          if [[ ! "${AUTOPILOT_TARGET_REPOSITORY}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]]; then
             echo 'Target repository must match the safe owner/repository form.'
             exit 1
           fi
 
-          if [[ "\${AUTOPILOT_TARGET_REPOSITORY}" == *..* ]]; then
+          if [[ "${AUTOPILOT_TARGET_REPOSITORY}" == *..* ]]; then
             echo 'Target repository contains an invalid path sequence.'
             exit 1
           fi
 
-          if [[ ! "\${AUTOPILOT_TARGET_BRANCH}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+          if [[ ! "${AUTOPILOT_TARGET_BRANCH}" =~ ^[A-Za-z0-9._/-]+$ ]]; then
             echo 'Target branch contains unsupported characters.'
             exit 1
           fi
 
-          git check-ref-format --branch "\${AUTOPILOT_TARGET_BRANCH}"
+          git check-ref-format --branch "${AUTOPILOT_TARGET_BRANCH}"
 
-          case "\${AUTOPILOT_ENGINE}" in
+          case "${AUTOPILOT_ENGINE}" in
             auto|github-free|ai) ;;
             *) echo 'Invalid execution engine.'; exit 1 ;;
           esac
 
-          [[ "\${AUTOPILOT_VERIFICATION_DEPTH}" =~ ^[0-9]+$ ]] || exit 1
-          [ "\${AUTOPILOT_VERIFICATION_DEPTH}" -le "\${MAX_VERIFICATION_HANDOFFS}" ] || exit 1
+          [[ "${AUTOPILOT_VERIFICATION_DEPTH}" =~ ^[0-9]+$ ]] || exit 1
+          [ "${AUTOPILOT_VERIFICATION_DEPTH}" -le "${MAX_VERIFICATION_HANDOFFS}" ] || exit 1
 
       - name: Checkout target repository
         uses: actions/checkout@v6
@@ -204,5 +204,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --quiet || git commit -m 'veytrix: complete requested mission'
-          git -c "http.extraheader=AUTHORIZATION: bearer \${GH_TOKEN}" \
-            push origin "HEAD:\${AUTOPILOT_TARGET_BRANCH}"
+          git -c "http.extraheader=AUTHORIZATION: bearer ${GH_TOKEN}" \
+            push origin "HEAD:${AUTOPILOT_TARGET_BRANCH}"
