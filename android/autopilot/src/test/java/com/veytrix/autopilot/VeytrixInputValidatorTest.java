@@ -12,6 +12,7 @@ public final class VeytrixInputValidatorTest {
         VeytrixInputValidator.validateRepository("fahadsoomro123/veytrix-autopilot");
         VeytrixInputValidator.validateBranch("feature/secure-foundation");
         VeytrixInputValidator.validateEngine("auto");
+        VeytrixInputValidator.validateEngine("mesh");
         VeytrixInputValidator.validateVerificationDepth(2);
     }
 
