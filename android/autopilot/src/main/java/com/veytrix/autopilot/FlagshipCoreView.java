@@ -95,9 +95,9 @@ public final class FlagshipCoreView extends View {
         haloShader = new RadialGradient(
                 cx, cy, coreRadius * 3.45f,
                 new int[]{
-                        Color.argb(128, 87, 128, 255),
-                        Color.argb(70, 127, 75, 255),
-                        Color.argb(28, 70, 219, 255),
+                        tint(128, VeytrixDesignTokens.VIOLET),
+                        tint(70, VeytrixDesignTokens.MAGENTA),
+                        tint(28, VeytrixDesignTokens.PINK),
                         Color.TRANSPARENT
                 },
                 new float[]{0f, .26f, .61f, 1f},
@@ -120,9 +120,9 @@ public final class FlagshipCoreView extends View {
         sphereCoreShader = new RadialGradient(
                 w * .44f, h * .29f, coreRadius * .78f,
                 new int[]{
-                        Color.argb(255, 255, 255, 255),
-                        Color.argb(235, 193, 215, 255),
-                        Color.argb(90, 111, 140, 255),
+                        tint(255, VeytrixDesignTokens.WHITE),
+                        tint(235, VeytrixDesignTokens.SILVER_STRONG),
+                        tint(90, VeytrixDesignTokens.VIOLET),
                         Color.TRANSPARENT
                 },
                 new float[]{0f, .18f, .56f, 1f},
@@ -215,35 +215,35 @@ public final class FlagshipCoreView extends View {
         stroke.setStrokeCap(Paint.Cap.ROUND);
 
         stroke.setStrokeWidth(dp(1.0f));
-        stroke.setColor(Color.argb(52, 146, 177, 255));
+        stroke.setColor(tint(52, VeytrixDesignTokens.VIOLET));
         c.save();
         c.rotate(-15f + t * 6f, cx, cy);
         c.drawOval(ringTall, stroke);
         c.restore();
 
         stroke.setStrokeWidth(dp(.9f));
-        stroke.setColor(Color.argb(58, 202, 123, 255));
+        stroke.setColor(tint(58, VeytrixDesignTokens.MAGENTA));
         c.save();
         c.rotate(31f - t * 5f, cx, cy);
         c.drawOval(ringTilt, stroke);
         c.restore();
 
         stroke.setStrokeWidth(dp(1.15f));
-        stroke.setColor(Color.argb(205, 105, 154, 255));
+        stroke.setColor(tint(205, VeytrixDesignTokens.PURPLE));
         c.save();
         c.rotate(-17f + t * 7.5f, cx, cy);
         c.drawOval(ring, stroke);
         c.restore();
 
         stroke.setStrokeWidth(dp(.95f));
-        stroke.setColor(Color.argb(148, 187, 104, 255));
+        stroke.setColor(tint(148, VeytrixDesignTokens.MAGENTA));
         c.save();
         c.rotate(28f - t * 6.0f, cx, cy);
         c.drawOval(ringInner, stroke);
         c.restore();
 
         stroke.setStrokeWidth(dp(.85f));
-        stroke.setColor(Color.argb(135, 79, 219, 255));
+        stroke.setColor(tint(135, VeytrixDesignTokens.PINK));
         c.save();
         c.rotate(-34f - t * 4.4f, cx, cy);
         c.drawArc(ringTilt, 18f, 112f, false, stroke);
@@ -252,7 +252,7 @@ public final class FlagshipCoreView extends View {
 
         stroke.setPathEffect(orbitDash);
         stroke.setStrokeWidth(dp(.72f));
-        stroke.setColor(Color.argb(112, 126, 101, 255));
+        stroke.setColor(tint(112, VeytrixDesignTokens.PURPLE));
         c.save();
         c.rotate(53f + t * 10f, cx, cy);
         c.drawOval(ring, stroke);
@@ -260,14 +260,14 @@ public final class FlagshipCoreView extends View {
         stroke.setPathEffect(null);
 
         stroke.setStrokeWidth(dp(1.35f));
-        stroke.setColor(Color.argb(220, 144, 184, 255));
+        stroke.setColor(tint(220, VeytrixDesignTokens.VIOLET));
         c.save();
         c.rotate(-17f + t * 7.5f, cx, cy);
         c.drawArc(ring, 194f, 108f, false, stroke);
         c.restore();
 
         stroke.setStrokeWidth(dp(1.0f));
-        stroke.setColor(Color.argb(180, 192, 126, 255));
+        stroke.setColor(tint(180, VeytrixDesignTokens.MAGENTA));
         c.save();
         c.rotate(28f - t * 6.0f, cx, cy);
         c.drawArc(ringInner, 18f, 118f, false, stroke);
@@ -291,7 +291,7 @@ public final class FlagshipCoreView extends View {
             glow.clearShadowLayer();
 
             if (i == 2 || i == 6) {
-                glow.setColor(Color.argb(155, 224, 235, 255));
+                glow.setColor(tint(155, VeytrixDesignTokens.WHITE));
                 c.drawCircle(x, y, r * .46f, glow);
             }
         }
@@ -299,7 +299,7 @@ public final class FlagshipCoreView extends View {
 
     private void drawSphere(Canvas c, float cx, float cy, float radius, float t) {
         fill.setShader(sphereShader);
-        fill.setShadowLayer(radius * .82f, 0, radius * .18f, Color.argb(138, 87, 92, 255));
+        fill.setShadowLayer(radius * .82f, 0, radius * .18f, tint(138, VeytrixDesignTokens.VIOLET));
         c.drawCircle(cx, cy, radius, fill);
         fill.clearShadowLayer();
         fill.setShader(null);
@@ -318,22 +318,22 @@ public final class FlagshipCoreView extends View {
         );
 
         fill.setColor(Color.WHITE);
-        fill.setShadowLayer(radius * .22f, -radius * .18f, -radius * .18f, Color.argb(115, 104, 149, 255));
+        fill.setShadowLayer(radius * .22f, -radius * .18f, -radius * .18f, tint(115, VeytrixDesignTokens.VIOLET));
         c.drawCircle(cx - radius * .31f, cy - radius * .34f, radius * .105f, fill);
         fill.clearShadowLayer();
 
         float lx = cx + (float) Math.sin(t * .72f) * radius * .26f;
         float ly = cy - radius * .58f;
-        fill.setColor(Color.argb(45, 255, 255, 255));
+        fill.setColor(tint(45, VeytrixDesignTokens.WHITE));
         c.drawCircle(lx, ly, radius * .055f, fill);
 
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(dp(.72f));
-        stroke.setColor(Color.argb(150, 152, 195, 255));
+        stroke.setColor(tint(150, VeytrixDesignTokens.PURPLE));
         c.drawCircle(cx, cy, radius * 1.035f, stroke);
 
         fill.setShader(markShader);
-        fill.setShadowLayer(radius * .18f, 0, 0, Color.argb(155, 110, 104, 255));
+        fill.setShadowLayer(radius * .18f, 0, 0, tint(155, VeytrixDesignTokens.MAGENTA));
         c.drawPath(markGlow, fill);
         fill.clearShadowLayer();
         fill.setShader(null);
@@ -345,7 +345,7 @@ public final class FlagshipCoreView extends View {
                 cy + radius * .60f
         );
         stroke.setStrokeWidth(dp(.65f));
-        stroke.setColor(Color.argb(120, 232, 241, 255));
+        stroke.setColor(tint(120, VeytrixDesignTokens.WHITE));
         c.drawArc(sphereHighlight, 208f, 98f, false, stroke);
     }
 
@@ -360,7 +360,7 @@ public final class FlagshipCoreView extends View {
         baseInner.set(left + dp(17), top + dp(11), right - dp(17), bottom - dp(12));
 
         fill.setColor(tint(70, VeytrixDesignTokens.VIOLET));
-        fill.setShadowLayer(dp(22), 0, dp(5), Color.argb(115, 62, 124, 255));
+        fill.setShadowLayer(dp(22), 0, dp(5), tint(115, VeytrixDesignTokens.PURPLE));
         c.drawOval(baseOuter, fill);
         fill.clearShadowLayer();
 
@@ -370,20 +370,20 @@ public final class FlagshipCoreView extends View {
         fill.setColor(VeytrixDesignTokens.SILVER);
         c.drawOval(baseMid, fill);
 
-        fill.setColor(Color.argb(210, 7, 13, 25));
+        fill.setColor(tint(210, VeytrixDesignTokens.PEARL));
         c.drawOval(baseInner, fill);
 
         stroke.setStyle(Paint.Style.STROKE);
         stroke.setStrokeWidth(dp(1.25f));
-        stroke.setColor(Color.argb(180, 99, 141, 231));
+        stroke.setColor(tint(180, VeytrixDesignTokens.VIOLET));
         c.drawOval(baseOuter, stroke);
 
         stroke.setStrokeWidth(dp(1.0f));
-        stroke.setColor(Color.argb(125, 152, 104, 255));
+        stroke.setColor(tint(125, VeytrixDesignTokens.MAGENTA));
         c.drawOval(baseMid, stroke);
 
         stroke.setStrokeWidth(dp(.75f));
-        stroke.setColor(Color.argb(92, 79, 212, 255));
+        stroke.setColor(tint(92, VeytrixDesignTokens.PINK));
         c.drawOval(baseInner, stroke);
 
         float start = (t * 34f) % 360f;
@@ -409,8 +409,8 @@ public final class FlagshipCoreView extends View {
             );
         }
 
-        glow.setColor(Color.argb(85, 104, 159, 255));
-        glow.setShadowLayer(dp(10), 0, 0, Color.argb(100, 84, 127, 255));
+        glow.setColor(tint(85, VeytrixDesignTokens.PURPLE));
+        glow.setShadowLayer(dp(10), 0, 0, tint(100, VeytrixDesignTokens.VIOLET));
         c.drawOval(
                 cx - width * .30f,
                 top + dp(1),
