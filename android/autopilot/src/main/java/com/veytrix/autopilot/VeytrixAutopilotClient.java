@@ -17,6 +17,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.time.Instant;
 import java.util.concurrent.ExecutorService;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executors;
 
 public final class VeytrixAutopilotClient {
@@ -242,6 +244,47 @@ public final class VeytrixAutopilotClient {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 main.post(() -> callback.onError("Mission monitoring was interrupted"));
+            } catch (Exception e) {
+                main.post(() -> callback.onError(safeMessage(e)));
+            }
+        });
+    }
+
+    public void fetchRecentRuns(int limit, SimpleCallback<List<RunInfo>> callback) {
+        executor.execute(() -> {
+            try {
+                if (limit < 1 || limit > 20) {
+                    throw new IllegalArgumentException("Run history limit must be 1-20");
+                }
+
+                String token = secureStore.loadToken();
+                if (token.isEmpty()) {
+                    throw new IllegalStateException("Connect GitHub first");
+                }
+
+                HttpResult result = request(
+                        "GET",
+                        "/repos/" + OWNER + "/" + REPO
+                                + "/actions/workflows/" + WORKFLOW
+                                + "/runs?per_page=" + limit,
+                        token,
+                        null
+                );
+
+                if (result.code != 200) {
+                    throw apiError("Run history lookup failed", result.code);
+                }
+
+                JSONArray runs = new JSONObject(result.body)
+                        .optJSONArray("workflow_runs");
+                List<RunInfo> output = new ArrayList<>();
+                if (runs != null) {
+                    for (int i = 0; i < runs.length(); i++) {
+                        output.add(toRunInfo(runs.getJSONObject(i)));
+                    }
+                }
+
+                main.post(() -> callback.onSuccess(output));
             } catch (Exception e) {
                 main.post(() -> callback.onError(safeMessage(e)));
             }
