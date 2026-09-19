@@ -388,20 +388,16 @@ public final class MainActivity extends Activity {
         );
     }
 
-    private void showResults(){
-        clearPage();LinearLayout col=pageColumn();col.addView(topBar("Results"),wrap());col.addView(text("Generated files, builds and verified artifacts.",11,MUTED,false),marginBottom(9));
-        col.addView(filterRowResults(),wrap());
-        addResult(col,"api-server.js","Build Artifact · 12.4 MB","code");addResult(col,"database.sql","SQL File · 2.1 MB","database");addResult(col,"README.md","Documentation · 8.2 KB","document");addResult(col,"app-release.apk","Android Build · 24.8 MB","android");addResult(col,"test-report.html","Test Report · 1.4 MB","report");addResult(col,"components.zip","UI Components · 5.6 MB","archive");
-        pageHost.addView(scrollWrap(col),full());
-    }
-
-    private HorizontalScrollView filterRowResults(){
-        HorizontalScrollView hs=new HorizontalScrollView(this);hs.setHorizontalScrollBarEnabled(false);LinearLayout row=new LinearLayout(this);row.setOrientation(LinearLayout.HORIZONTAL);String[] fs={"All","Code","Builds","Docs","Other"};
-        for(String f:fs){TextView chip=text(f,9,f.equals("All")?WHITE:MUTED,true);chip.setGravity(Gravity.CENTER);chip.setPadding(dp(13),0,dp(13),0);chip.setBackground(roundDrawable(f.equals("All")?BLUE:Color.rgb(242,246,252),12,f.equals("All")?BLUE:BORDER));chip.setOnClickListener(v->toast(f+" filter selected"));row.addView(chip,new LinearLayout.LayoutParams(-2,dp(32)));space(row,6,1);}hs.addView(row);return hs;
-    }
-
-    private void addResult(LinearLayout col,String name,String meta,String type){
-        LinearLayout row=cardRow();row.addView(new IconView(this,type),new LinearLayout.LayoutParams(dp(38),dp(38)));LinearLayout info=new LinearLayout(this);info.setOrientation(LinearLayout.VERTICAL);info.setPadding(dp(10),0,dp(8),0);info.addView(text(name,11,INK,true));info.addView(text(meta,8,MUTED,false));row.addView(info,new LinearLayout.LayoutParams(0,-2,1));TextView act=text("↓",13,BLUE,true);act.setGravity(Gravity.CENTER);act.setBackground(roundDrawable(Color.rgb(239,246,255),10,BORDER));act.setOnClickListener(v->toast("Action ready: "+name));row.addView(act,new LinearLayout.LayoutParams(dp(32),dp(32)));col.addView(row,marginBottom(7));
+    private void showResults() {
+        clearPage();
+        pageHost.addView(
+                new VeytrixResultsView(
+                        this,
+                        autopilotClient,
+                        () -> showConnectionDialog()
+                ),
+                full()
+        );
     }
 
     private void showControl(){
