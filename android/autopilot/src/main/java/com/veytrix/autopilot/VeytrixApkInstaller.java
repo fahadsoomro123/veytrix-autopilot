@@ -39,6 +39,10 @@ public final class VeytrixApkInstaller {
                                 android.content.pm.PackageInstaller.SessionParams.MODE_FULL_INSTALL);
                 params.setAppPackageName(context.getPackageName());
                 params.setSize(apk.length());
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    params.setRequireUserAction(
+                            android.content.pm.PackageInstaller.SessionParams.USER_ACTION_REQUIRED);
+                }
 
                 int sessionId = installer.createSession(params);
                 android.content.pm.PackageInstaller.Session session = installer.openSession(sessionId);
