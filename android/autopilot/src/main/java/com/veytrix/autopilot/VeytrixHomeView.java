@@ -26,6 +26,7 @@ public final class VeytrixHomeView extends LinearLayout {
     }
 
     private final VeytrixAutopilotClient client;
+    private final VeytrixControlPreferences prefs;
     private final Host host;
     private EditText missionInput;
     private TextView connectionText;
@@ -37,6 +38,7 @@ public final class VeytrixHomeView extends LinearLayout {
     public VeytrixHomeView(Context context, VeytrixAutopilotClient client, Host host) {
         super(context);
         this.client = client;
+        this.prefs = new VeytrixControlPreferences(context);
         this.host = host;
 
         setOrientation(VERTICAL);
@@ -189,7 +191,8 @@ public final class VeytrixHomeView extends LinearLayout {
         composer.addView(missionInput, inputLp);
 
         TextView recipe = label(
-                "auto engine  ·  verification depth 2  ·  target branch main",
+                "engine  ·  verification depth " + prefs.getVerificationDepth()
+                        + "  ·  target branch main",
                 8,
                 VeytrixDesignTokens.TEXT_SECONDARY,
                 false
@@ -319,8 +322,8 @@ public final class VeytrixHomeView extends LinearLayout {
                 mission,
                 target,
                 "main",
-                "auto",
-                2,
+                prefs.getEngine(),
+                prefs.getVerificationDepth(),
                 new VeytrixAutopilotClient.Callback() {
                     @Override
                     public void onStarted() {
