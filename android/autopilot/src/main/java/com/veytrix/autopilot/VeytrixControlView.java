@@ -119,30 +119,6 @@ public final class VeytrixControlView extends LinearLayout {
         ));
 
         addView(label(
-                "NOTIFICATIONS",
-                10,
-                VeytrixDesignTokens.TEXT_PRIMARY,
-                true
-        ), topBottom(8, 4));
-
-        TextView notificationValue = value(
-                prefs.isNotificationsEnabled() ? "ENABLED" : "DISABLED"
-        );
-        addView(settingRow(
-                "Mission notifications",
-                "Stored locally; no secret data",
-                notificationValue,
-                "TOGGLE",
-                v -> {
-                    boolean next = !prefs.isNotificationsEnabled();
-                    prefs.setNotificationsEnabled(next);
-                    notificationValue.setText(next ? "ENABLED" : "DISABLED");
-                }
-        ), new LayoutParams(
-                LayoutParams.MATCH_PARENT, dp(66)
-        ));
-
-        addView(label(
                 "SECURITY",
                 10,
                 VeytrixDesignTokens.TEXT_PRIMARY,
