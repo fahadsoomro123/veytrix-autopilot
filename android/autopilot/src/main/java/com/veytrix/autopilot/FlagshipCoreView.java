@@ -390,14 +390,14 @@ public final class FlagshipCoreView extends View {
         for (int i = 0; i < 12; i++) {
             float alpha = 74f + 70f * (float) Math.sin(t * 2.0f + i * .85f);
             stroke.setStrokeWidth(dp(i % 3 == 0 ? 1.15f : .65f));
-            stroke.setColor(Color.argb((int) Math.max(28, alpha), 94, 145, 255));
+            stroke.setColor(tint((int) Math.max(28, alpha), VeytrixDesignTokens.VIOLET));
             c.drawArc(baseMid, start + i * 30f, 9f, false, stroke);
         }
 
         for (int i = -3; i <= 3; i++) {
             float x = cx + i * dp(7.5f);
             float beamAlpha = 18f + 20f * (float) Math.sin(t * 1.9f + i);
-            fill.setColor(Color.argb((int) Math.max(8, beamAlpha), 91, 150, 255));
+            fill.setColor(tint((int) Math.max(8, beamAlpha), VeytrixDesignTokens.PURPLE));
             c.drawRoundRect(
                     x - dp(.75f),
                     top - dp(2),
