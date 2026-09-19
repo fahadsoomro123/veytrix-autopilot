@@ -129,7 +129,7 @@ public final class MainActivity extends Activity {
         nav.setGravity(Gravity.CENTER);
         nav.setPadding(dp(6), dp(6), dp(6), dp(6));
         nav.setBackground(roundDrawable(
-                VeytrixDesignTokens.VeytrixDesignTokens.WHITE,
+                VeytrixDesignTokens.WHITE,
                 20,
                 VeytrixDesignTokens.SILVER
         ));
@@ -163,7 +163,7 @@ public final class MainActivity extends Activity {
 
     private void buildDrawer() {
         drawerShade = new FrameLayout(this);
-        drawerShade.setBackgroundColor(withAlpha(VeytrixDesignTokens.VeytrixDesignTokens.PURPLE, 58));
+        drawerShade.setBackgroundColor(withAlpha(VeytrixDesignTokens.PURPLE, 58));
         drawerShade.setVisibility(View.GONE);
         drawerShade.setOnClickListener(v -> closeDrawer());
         root.addView(drawerShade, full());
@@ -413,7 +413,7 @@ public final class MainActivity extends Activity {
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        Button menu = button("☰", VeytrixDesignTokens.VeytrixDesignTokens.WHITE, VeytrixDesignTokens.TEXT_PRIMARY);
+        Button menu = button("☰", VeytrixDesignTokens.WHITE, VeytrixDesignTokens.TEXT_PRIMARY);
         menu.setOnClickListener(v -> openDrawer());
         header.addView(menu, new LinearLayout.LayoutParams(dp(48), dp(48)));
         TextView title = text("MORE", 22, VeytrixDesignTokens.TEXT_PRIMARY, true);
@@ -451,7 +451,7 @@ public final class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER_VERTICAL);
         row.setPadding(dp(12), dp(4), dp(12), dp(4));
         row.setBackground(roundDrawable(
-                VeytrixDesignTokens.VeytrixDesignTokens.WHITE, 15, VeytrixDesignTokens.SILVER
+                VeytrixDesignTokens.WHITE, 15, VeytrixDesignTokens.SILVER
         ));
         TextView marker = text("•", 18, VeytrixDesignTokens.VIOLET, true);
         marker.setGravity(Gravity.CENTER);
@@ -564,7 +564,8 @@ public final class MainActivity extends Activity {
         showControl();
     }
 
-    private Button button(String label, int background, int fg){Button b=new Button(this);b.setText(label);b.setTextSize(11);b.setTextColor(fg);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(48));b.setMinWidth(dp(48));b.setBackground(roundDrawable(background,14,background==VeytrixDesignTokens.WHITE?VeytrixDesignTokens.SILVER:background));return b;}\n    private TextView text(String s,float size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create(Typeface.DEFAULT,bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false);return t;}
+    private Button button(String label, int background, int fg){Button b=new Button(this);b.setText(label);b.setTextSize(11);b.setTextColor(fg);b.setAllCaps(false);b.setTypeface(Typeface.DEFAULT,Typeface.BOLD);b.setMinHeight(dp(48));b.setMinWidth(dp(48));b.setBackground(roundDrawable(background,14,background==VeytrixDesignTokens.WHITE?VeytrixDesignTokens.SILVER:background));return b;}
+    private TextView text(String s,float size,int color,boolean bold){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(color);t.setTypeface(Typeface.create(Typeface.DEFAULT,bold?Typeface.BOLD:Typeface.NORMAL));t.setIncludeFontPadding(false);return t;}
     private GradientDrawable roundDrawable(int fill,int radius,int stroke){GradientDrawable d=new GradientDrawable();d.setColor(fill);d.setCornerRadius(dp(radius));if(stroke!=Color.TRANSPARENT)d.setStroke(Math.max(1,dp(1)),stroke);return d;}
     private ViewGroup.LayoutParams marginBottom(int px){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.bottomMargin=dp(px);return p;}
     private ViewGroup.LayoutParams marginTop(int px){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.topMargin=dp(px);return p;}
