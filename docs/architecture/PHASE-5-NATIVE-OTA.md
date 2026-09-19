@@ -27,6 +27,10 @@ Android `PackageInstaller` is used instead of the deprecated `ACTION_INSTALL_PAC
 
 The update surface never auto-installs, never downgrades the app, and never bypasses Android's package-install security. Debug builds intentionally reject a production-signed release when their signing certificate differs.
 
+## User approval boundary
+
+On Android 12/API 31 and newer, the installer explicitly requests USER_ACTION_REQUIRED for the PackageInstaller session. The application never attempts to silently install an OTA. Android remains the authority for the final installation decision.
+
 ## Rollback
 
 Normal app update installs are monotonic by version code. A lower-version release is rejected. An effective rollback therefore requires a separately signed recovery release built from an older source revision with a newer version code; this is a future release-publishing capability, not a client-side downgrade bypass.
